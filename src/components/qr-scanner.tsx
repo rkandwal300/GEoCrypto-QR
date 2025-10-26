@@ -26,6 +26,7 @@ export function QrScanner() {
   const { toast } = useToast();
 
   useEffect(() => {
+    // Initialize the scanner
     if (!scannerRef.current) {
       const scanner = new Html5Qrcode(readerId, {
         verbose: false,
@@ -37,24 +38,35 @@ export function QrScanner() {
     const startScanner = async () => {
       setError(null);
       setScannedData(null);
+      // Check for camera permissions and start the scanner
       try {
-        await scannerRef.current?.start(
-          { facingMode: "environment" },
-          {
-            fps: 10,
-            qrbox: { width: 250, height: 250 },
-            aspectRatio: 1.0,
-          },
-          onScanSuccess,
-          onScanFailure
-        );
+        const cameras = await Html5Qrcode.getCameras();
+        if (cameras && cameras.length) {
+          await scannerRef.current?.start(
+            { facingMode: "environment" },
+            {
+              fps: 10,
+              qrbox: (viewfinderWidth, viewfinderHeight) => {
+                const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                const qrboxSize = Math.floor(minEdge * 0.7);
+                return { width: qrboxSize, height: qrboxSize };
+              },
+              aspectRatio: 1.0,
+            },
+            onScanSuccess,
+            onScanFailure
+          );
+        } else {
+           setError("No camera found. Please use the upload option.");
+        }
       } catch (err: any) {
-        setError(`Failed to start scanner: ${err.message}. Please grant camera permissions.`);
+        setError(`Failed to start scanner: ${err.message}. Please grant camera permissions or use the upload option.`);
       }
     };
     
     startScanner();
 
+    // Cleanup function to stop the scanner when the component unmounts
     return () => {
       if (scannerRef.current?.getState() === Html5QrcodeScannerState.SCANNING) {
         scannerRef.current?.stop().catch(err => console.error("Failed to stop scanner", err));
@@ -121,44 +133,42 @@ export function QrScanner() {
   };
 
   const onScanFailure = (errorMessage: string) => {
-    // This is called frequently, so we don't want to show a toast every time.
+    // This is called frequently when no QR code is in view, so we don't show an error.
     // console.log(`QR Code no longer in view. ${errorMessage}`);
   };
 
   const handleRescan = async () => {
     setError(null);
     setScannedData(null);
-    if (scannerRef.current?.getState() === Html5QrcodeScannerState.PAUSED) {
-        await scannerRef.current.resume();
-    } else if (scannerRef.current?.getState() === Html5QrcodeScannerState.NOT_STARTED || scannerRef.current?.getState() === Html5QrcodeScannerState.STOPPED) {
+    setIsLoading(false);
+    if(scannerRef.current?.isScanning === false) {
+      try {
         await scannerRef.current?.start(
           { facingMode: "environment" },
           { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
           onScanSuccess,
           onScanFailure
         );
+      } catch (err: any) {
+        setError(`Failed to restart scanner: ${err.message}.`);
+      }
     }
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && scannerRef.current) {
-      handleRescan(); // Clear previous data
+      setScannedData(null);
+      setError(null);
       setIsLoading(true);
+      if (scannerRef.current?.isScanning) {
+        await scannerRef.current.pause(true);
+      }
       try {
-        await scannerRef.current.scanFile(file, true)
-          .then(decodedText => onScanSuccess(decodedText))
-          .catch(err => {
-            const errorMessage = err instanceof Error ? err.message : "Could not scan the QR code from the image.";
-            setError(errorMessage);
-            toast({
-              variant: "destructive",
-              title: "Upload Error",
-              description: errorMessage,
-            });
-          });
+        const decodedText = await scannerRef.current.scanFile(file, false);
+        onScanSuccess(decodedText);
       } catch (err: any) {
-        const errorMessage = err.message || "Failed to process the uploaded file.";
+        const errorMessage = err.message || "Could not scan the QR code from the image. Please try a different file.";
         setError(errorMessage);
         toast({
           variant: "destructive",
@@ -168,7 +178,7 @@ export function QrScanner() {
       } finally {
         setIsLoading(false);
       }
-      // Reset file input
+      // Reset file input to allow scanning the same file again
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -183,7 +193,7 @@ export function QrScanner() {
           Scan & Decrypt QR
         </CardTitle>
         <CardDescription>
-          Point your camera at a GeoCrypt QR code to securely view its content with location data, or upload an image.
+          Point your camera at a GeoCrypt QR code to securely view its content, or upload an image.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -197,7 +207,7 @@ export function QrScanner() {
           )}
         </div>
 
-        {error && (
+        {error && !scannedData && (
           <div className="flex items-center p-4 text-sm text-destructive-foreground bg-destructive rounded-lg" role="alert">
             <AlertTriangle className="flex-shrink-0 inline w-4 h-4 mr-3" />
             <div>
@@ -222,18 +232,18 @@ export function QrScanner() {
             </Button>
           </div>
         ) : (
-           <div className="text-center space-y-4">
-             <p className="text-muted-foreground">Align a QR code within the frame to scan, or upload an image file.</p>
+           <div className="text-center space-y-4 pt-4">
+             <p className="text-muted-foreground">Align a QR code to scan, or upload an image file.</p>
              <input
               type="file"
               ref={fileInputRef}
               onChange={handleFileChange}
-              accept="image/*"
+              accept="image/png, image/jpeg, image/gif"
               className="hidden"
             />
-            <Button onClick={() => fileInputRef.current?.click()} variant="outline">
+            <Button onClick={() => fileInputRef.current?.click()} variant="outline" disabled={isLoading}>
               <FileUp className="mr-2 h-4 w-4" />
-              Upload QR Code Image
+              Upload QR Image
             </Button>
            </div>
         )}
