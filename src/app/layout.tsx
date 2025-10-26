@@ -30,7 +30,10 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#3AB0FF" />
       </head>
-      <body className={cn("font-body antialiased min-h-screen flex flex-col")}>
+      <body
+        className={cn("font-body antialiased min-h-screen flex flex-col")}
+        suppressHydrationWarning
+      >
         <Header />
         <main className="flex-1 flex flex-col items-center justify-start p-4 sm:p-6 lg:p-8">
           {children}
