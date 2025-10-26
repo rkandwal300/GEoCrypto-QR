@@ -62,7 +62,7 @@ export function QrGenerator() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      jsonData: `{\n  id:"123",\n  name:"rahul Kandwal",\n  domain:"https://xyz.com",\n  route:"sign_payload",\n  method:"POST"\n}`,
+      jsonData: "",
     },
   });
 
