@@ -259,14 +259,21 @@ export function QrScanner() {
   }
 
   return (
-    <div className="w-full h-[calc(100vh-8rem)] max-h-screen flex flex-col items-center justify-center bg-black">
+    <div className="w-full h-[calc(100vh-8rem)] flex flex-col items-center justify-center bg-black p-4">
       <div
         className={cn(
-          "relative w-full h-full flex flex-col items-center justify-center",
+          "relative w-full max-w-full aspect-square flex flex-col items-center justify-center overflow-hidden",
           showScanner || isInitializing ? "visible" : "invisible"
         )}
       >
-        <div id={readerId} className="w-full h-full object-cover"></div>
+        <div id={readerId} className="w-full h-full"></div>
+
+        <div
+          style={{
+            boxShadow: 'rgb(0 0 0 / 50%) 0px 0px 0px 5000px',
+          }}
+          className="absolute left-1/2 top-1/2 w-[70%] h-[70%] -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+        ></div>
 
         {(isLoading || isInitializing) && (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white bg-black/50 p-4 z-10">
@@ -323,5 +330,3 @@ export function QrScanner() {
     </div>
   );
 }
-
-    
