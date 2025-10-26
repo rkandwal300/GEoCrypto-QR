@@ -168,7 +168,7 @@ export function QrScanner() {
                 const imageFile = await (await fetch(imageDataUrl)).blob();
                 const file = new File([imageFile], "capture.png", { type: "image/png"});
                 if (!scannerRef.current) {
-                    scannerRef.current = new Html5Qrcode(readerId);
+                    scannerRef.current = new Html5Qrcode(readerId, false);
                 }
                 const decodedText = await scannerRef.current.scanFile(file, false);
                 await processDecodedText(decodedText);
@@ -352,3 +352,5 @@ export function QrScanner() {
     </Card>
   );
 }
+
+    
