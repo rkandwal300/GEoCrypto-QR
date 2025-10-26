@@ -17,8 +17,18 @@ import { useToast } from "@/hooks/use-toast";
 import { decryptData } from "@/lib/crypto";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
+type ScannedDataType = {
+  scanDetails: {
+    location: {
+      latitude: number;
+      longitude: number;
+    }
+  }
+} & object;
+
+
 export function QrScanner() {
-  const [scannedData, setScannedData] = useState<object | null>(null);
+  const [scannedData, setScannedData] = useState<ScannedDataType | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
@@ -28,48 +38,53 @@ export function QrScanner() {
 
   const { toast } = useToast();
 
-  useEffect(() => {
-    const startScanner = async () => {
-      setError(null);
-      setScannedData(null);
+  const startScanner = async () => {
+    setError(null);
+    setScannedData(null);
 
-      // Initialize scanner if it doesn't exist
-      if (!scannerRef.current) {
-        scannerRef.current = new Html5Qrcode(readerId, false);
-      }
+    // Ensure the container is visible for the scanner to initialize
+    const qrReaderElement = document.getElementById(readerId);
+    if (qrReaderElement) {
+        qrReaderElement.style.display = 'block';
+    }
 
-      if (scannerRef.current?.getState() === Html5QrcodeScannerState.SCANNING) {
-        return;
-      }
-      
-      try {
-        const cameras = await Html5Qrcode.getCameras();
-        if (cameras && cameras.length) {
-          setHasCameraPermission(true);
-          await scannerRef.current?.start(
-            { facingMode: "environment" },
-            {
-              fps: 10,
-              qrbox: (viewfinderWidth, viewfinderHeight) => {
-                const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                const qrboxSize = Math.floor(minEdge * 0.7);
-                return { width: qrboxSize, height: qrboxSize };
-              },
-              aspectRatio: 1.0,
-            },
-            onScanSuccess,
-            () => {} // onScanFailure - do nothing on purpose
-          );
-        } else {
-          setHasCameraPermission(false);
-          setError("No camera found. Please use the upload option.");
-        }
-      } catch (err: any) {
-        setHasCameraPermission(false);
-        setError(`Camera permission denied. Please allow camera access in your browser settings or use the upload option.`);
-      }
-    };
+    if (!scannerRef.current) {
+      scannerRef.current = new Html5Qrcode(readerId, false);
+    }
     
+    if (scannerRef.current?.getState() === Html5QrcodeScannerState.SCANNING) {
+      return;
+    }
+    
+    try {
+      const cameras = await Html5Qrcode.getCameras();
+      if (cameras && cameras.length) {
+        setHasCameraPermission(true);
+        await scannerRef.current?.start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            qrbox: (viewfinderWidth, viewfinderHeight) => {
+              const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+              const qrboxSize = Math.floor(minEdge * 0.7);
+              return { width: qrboxSize, height: qrboxSize };
+            },
+            aspectRatio: 1.0,
+          },
+          onScanSuccess,
+          () => {} // onScanFailure - do nothing on purpose
+        );
+      } else {
+        setHasCameraPermission(false);
+        setError("No camera found. Please use the upload option.");
+      }
+    } catch (err: any) {
+      setHasCameraPermission(false);
+      setError(`Camera permission denied. Please allow camera access in your browser settings or use the upload option.`);
+    }
+  };
+
+  useEffect(() => {
     startScanner();
 
     return () => {
@@ -117,7 +132,7 @@ export function QrScanner() {
         },
       };
 
-      setScannedData(mergedData);
+      setScannedData(mergedData as ScannedDataType);
       setError(null);
       toast({
         title: "Success!",
@@ -144,29 +159,18 @@ export function QrScanner() {
   };
   
   const handleRescan = async () => {
+    setIsLoading(true); // Show loading state briefly
     setError(null);
     setScannedData(null);
-    setIsLoading(false);
-    if (scannerRef.current && hasCameraPermission) {
-      if(scannerRef.current.isScanning) {
-          scannerRef.current.resume();
-      } else {
-        try {
-            await scannerRef.current.start(
-                { facingMode: "environment" },
-                { fps: 10, qrbox: (viewfinderWidth, viewfinderHeight) => {
-                    const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                    const qrboxSize = Math.floor(minEdge * 0.7);
-                    return { width: qrboxSize, height: qrboxSize };
-                  }, aspectRatio: 1.0 },
-                onScanSuccess,
-                () => {}
-            );
-        } catch (err: any) {
-            setError(`Failed to restart scanner: ${err.message}.`);
-        }
+  
+    // Brief timeout to allow React to re-render and show the scanner UI
+    setTimeout(async () => {
+      setIsLoading(false);
+      if (hasCameraPermission) {
+        // Now that the element is visible again, restart the scanner
+        await startScanner();
       }
-    }
+    }, 100);
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -176,7 +180,6 @@ export function QrScanner() {
       setError(null);
       setIsLoading(true);
 
-      // Ensure scanner exists
       if (!scannerRef.current) {
         scannerRef.current = new Html5Qrcode(readerId, false);
       }
@@ -199,12 +202,15 @@ export function QrScanner() {
       } finally {
         setIsLoading(false);
       }
-      // Reset file input to allow re-uploading the same file
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
     }
   };
+
+  const mapUrl = scannedData 
+    ? `https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&q=${scannedData.scanDetails.location.latitude},${scannedData.scanDetails.location.longitude}`
+    : "";
 
   return (
     <Card className="w-full max-w-2xl shadow-2xl shadow-primary/10">
@@ -218,28 +224,28 @@ export function QrScanner() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {!scannedData && (
+        <div style={{ display: scannedData ? 'none' : 'block' }}>
           <div className="relative aspect-square w-full max-w-md mx-auto rounded-lg overflow-hidden border-4 border-dashed">
-            <div id={readerId} className="w-full h-full" />
-            {isLoading && (
-              <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center">
-                <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                <p className="mt-4 text-lg font-medium">Processing Data...</p>
-              </div>
-            )}
-             {hasCameraPermission === false && !isLoading && (
-              <div className="absolute inset-0 bg-background/90 flex flex-col items-center justify-center p-4 text-center">
-                 <Alert variant="destructive">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle>Camera Access Required</AlertTitle>
-                    <AlertDescription>
-                     Camera permission is not available. Please grant access in your browser settings or use the file upload option.
-                    </AlertDescription>
-                  </Alert>
-              </div>
-            )}
+              <div id={readerId} className="w-full h-full" />
+              {isLoading && (
+                  <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center">
+                      <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                      <p className="mt-4 text-lg font-medium">Processing Data...</p>
+                  </div>
+              )}
+              {hasCameraPermission === false && !isLoading && (
+                  <div className="absolute inset-0 bg-background/90 flex flex-col items-center justify-center p-4 text-center">
+                      <Alert variant="destructive">
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertTitle>Camera Access Required</AlertTitle>
+                          <AlertDescription>
+                              Camera permission is not available. Please grant access in your browser settings or use the file upload option.
+                          </AlertDescription>
+                      </Alert>
+                  </div>
+              )}
           </div>
-        )}
+        </div>
 
         {error && !isLoading && (
           <div className="flex items-center p-4 text-sm text-destructive-foreground bg-destructive rounded-lg" role="alert">
@@ -252,14 +258,31 @@ export function QrScanner() {
 
         {scannedData ? (
           <div className="space-y-4">
-            <h3 className="font-semibold text-lg flex items-center gap-2"><MapPin className="text-green-500" /> Decrypted & Merged Data</h3>
-            <Card className="bg-muted/50 dark:bg-muted/20">
-              <CardContent className="p-4">
-                <pre className="text-sm font-code w-full whitespace-pre-wrap break-words">
-                  {JSON.stringify(scannedData, null, 2)}
-                </pre>
-              </CardContent>
-            </Card>
+            <div>
+              <h3 className="font-semibold text-lg flex items-center gap-2"><MapPin className="text-green-500" /> Decrypted & Merged Data</h3>
+              <Card className="bg-muted/50 dark:bg-muted/20 my-2">
+                <CardContent className="p-4">
+                  <pre className="text-sm font-code w-full whitespace-pre-wrap break-words">
+                    {JSON.stringify(scannedData, null, 2)}
+                  </pre>
+                </CardContent>
+              </Card>
+            </div>
+            
+            <div>
+               <h3 className="font-semibold text-lg flex items-center gap-2"><MapPin className="text-blue-500" /> Scan Location</h3>
+               <div className="aspect-video w-full rounded-lg overflow-hidden border mt-2">
+                 <iframe
+                   width="100%"
+                   height="100%"
+                   style={{ border: 0 }}
+                   loading="lazy"
+                   allowFullScreen
+                   src={mapUrl}>
+                 </iframe>
+               </div>
+            </div>
+
             <Button onClick={handleRescan} className="w-full">
               <Camera className="mr-2 h-4 w-4" />
               Scan Another Code
