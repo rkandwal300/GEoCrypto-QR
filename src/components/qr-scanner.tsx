@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Html5Qrcode, Html5QrcodeScannerState } from "html5-qrcode";
-import { Camera, ScanLine, MapPin, AlertTriangle, Loader2, FileUp, KeyRound } from "lucide-react";
+import { Camera, ScanLine, MapPin, AlertTriangle, Loader2, FileUp, KeyRound, Shutter } from "lucide-react";
 
 import {
   Card,
@@ -33,81 +33,66 @@ export function QrScanner() {
   const [scannedData, setScannedData] = useState<ScannedDataType | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const qrReaderRef = useRef<HTMLDivElement>(null);
-  const readerId = "qr-code-reader";
+  const readerId = "qr-code-reader-video";
+  
   const { toast } = useToast();
   const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
+  const stopCamera = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+    }
+    if (scannerRef.current && scannerRef.current.isScanning) {
+        scannerRef.current.stop().catch(err => console.error("Ignoring scanner stop error", err));
+    }
+    setIsScanning(false);
+  };
 
   const startScanner = async () => {
     setError(null);
     setScannedData(null);
-    
-    if (qrReaderRef.current) {
-        qrReaderRef.current.style.display = 'block';
-    }
-
-    if (!scannerRef.current) {
-      scannerRef.current = new Html5Qrcode(readerId, false);
-    }
-    
-    if (scannerRef.current?.getState() === Html5QrcodeScannerState.SCANNING) {
-      return;
-    }
-    
+    setIsScanning(true);
+  
     try {
-      const cameras = await Html5Qrcode.getCameras();
-      if (cameras && cameras.length) {
-        setHasCameraPermission(true);
-        if (scannerRef.current.isScanning) {
-          await scannerRef.current.stop();
-        }
-        await scannerRef.current?.start(
-          { facingMode: "environment" },
-          {
-            fps: 10,
-            qrbox: (viewfinderWidth, viewfinderHeight) => {
-              const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-              const qrboxSize = Math.floor(minEdge * 0.7);
-              return { width: qrboxSize, height: qrboxSize };
-            },
-            aspectRatio: 1.0,
-          },
-          onScanSuccess,
-          () => {} // onScanFailure - do nothing on purpose
-        );
-      } else {
-        setHasCameraPermission(false);
-        setError("No camera found. Please use the upload option.");
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: "environment" } 
+      });
+      setHasCameraPermission(true);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
       }
     } catch (err: any) {
       setHasCameraPermission(false);
       setError(`Camera permission denied. Please allow camera access in your browser settings or use the upload option.`);
+      setIsScanning(false);
     }
   };
 
   useEffect(() => {
+    // Initialize scanner instance once.
+    if (!scannerRef.current) {
+      scannerRef.current = new Html5Qrcode(readerId, false);
+    }
     startScanner();
 
     return () => {
-      if (scannerRef.current?.isScanning) {
-        scannerRef.current.stop().catch(err => console.error("Failed to stop scanner cleanly.", err));
-      }
+      stopCamera();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const processDecodedText = async (decodedText: string) => {
     setIsLoading(true);
-    if (scannerRef.current?.isScanning) {
-        try {
-            await scannerRef.current.pause(true);
-        } catch(e) {
-            // Can ignore this, might be paused already
-        }
-    }
+    stopCamera();
 
     try {
       const decrypted = decryptData(decodedText);
@@ -155,32 +140,52 @@ export function QrScanner() {
       handleRescan();
     } finally {
       setIsLoading(false);
-      if (qrReaderRef.current) {
-        qrReaderRef.current.style.display = 'none';
-      }
+    }
+  };
+  
+  const handleRescan = () => {
+    setError(null);
+    setScannedData(null);
+    if(hasCameraPermission !== false){
+        startScanner();
     }
   };
 
-  const onScanSuccess = (decodedText: string) => {
-    processDecodedText(decodedText);
-  };
-  
-  const handleRescan = async () => {
-    setError(null);
-    setScannedData(null);
-  
-    // Brief timeout to allow React to re-render and show the scanner UI
-    setTimeout(async () => {
-        if (qrReaderRef.current) {
-            qrReaderRef.current.style.display = 'block';
+  const handleCapture = async () => {
+    if (videoRef.current && canvasRef.current) {
+        setIsLoading(true);
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const context = canvas.getContext('2d');
+        if(context) {
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            stopCamera();
+            try {
+                const imageDataUrl = canvas.toDataURL('image/png');
+                const imageFile = await (await fetch(imageDataUrl)).blob();
+                const file = new File([imageFile], "capture.png", { type: "image/png"});
+                if (!scannerRef.current) {
+                    scannerRef.current = new Html5Qrcode(readerId);
+                }
+                const decodedText = await scannerRef.current.scanFile(file, false);
+                await processDecodedText(decodedText);
+            } catch (err) {
+                 const errorMessage = "Could not decode QR code from the captured image. Please try again.";
+                 setError(errorMessage);
+                 toast({
+                    variant: "destructive",
+                    title: "Capture Error",
+                    description: errorMessage,
+                 });
+                 setIsLoading(false);
+                 handleRescan();
+            }
         }
-        if (scannerRef.current?.getState() === Html5QrcodeScannerState.PAUSED) {
-            scannerRef.current.resume();
-        } else if (hasCameraPermission) {
-            await startScanner();
-        }
-    }, 100);
-  };
+    }
+  }
+
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -188,19 +193,12 @@ export function QrScanner() {
       setScannedData(null);
       setError(null);
       setIsLoading(true);
+      stopCamera();
 
       if (!scannerRef.current) {
         scannerRef.current = new Html5Qrcode(readerId, false);
       }
       
-      if (scannerRef.current?.isScanning) {
-        try {
-          await scannerRef.current.stop();
-        } catch (e) {
-          console.error("Error stopping scanner before file scan:", e);
-        }
-      }
-
       try {
         const decodedText = await scannerRef.current.scanFile(file, false);
         await processDecodedText(decodedText);
@@ -212,7 +210,6 @@ export function QrScanner() {
           title: "Upload Error",
           description: errorMessage,
         });
-      } finally {
         setIsLoading(false);
       }
       if (fileInputRef.current) {
@@ -239,7 +236,19 @@ export function QrScanner() {
       <CardContent className="space-y-6">
         <div style={{ display: scannedData || isLoading ? 'none' : 'block' }}>
           <div className="relative aspect-square w-full max-w-md mx-auto rounded-lg overflow-hidden border-4 border-dashed">
-              <div id={readerId} ref={qrReaderRef} className="w-full h-full" />
+             <video ref={videoRef} id={readerId} className="w-full h-full object-cover" autoPlay playsInline muted />
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                 <div className="w-2/3 h-2/3 border-4 border-white/50 rounded-2xl shadow-lg" />
+              </div>
+              
+              {isScanning && hasCameraPermission && (
+                  <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
+                    <Button onClick={handleCapture} size="icon" className="rounded-full w-20 h-20 bg-white/80 hover:bg-white border-4 border-primary shadow-lg">
+                        <Shutter className="w-10 h-10 text-primary" />
+                    </Button>
+                  </div>
+              )}
+
               {hasCameraPermission === false && !isLoading && (
                   <div className="absolute inset-0 bg-background/90 flex flex-col items-center justify-center p-4 text-center">
                       <Alert variant="destructive">
@@ -252,13 +261,14 @@ export function QrScanner() {
                   </div>
               )}
           </div>
+          <canvas ref={canvasRef} className="hidden" />
         </div>
 
         {isLoading && (
-            <div className="flex flex-col items-center justify-center text-center p-8">
+            <div className="flex flex-col items-center justify-center text-center p-8 h-96">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
                 <p className="mt-4 text-lg font-medium">Processing Data...</p>
-                <p className="text-muted-foreground">Decrypting content and fetching location.</p>
+                <p className="text-muted-foreground">Capturing, decrypting, and fetching location.</p>
             </div>
         )}
 
@@ -341,5 +351,3 @@ export function QrScanner() {
     </Card>
   );
 }
-
-    
