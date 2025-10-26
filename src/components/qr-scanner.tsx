@@ -194,12 +194,16 @@ export function QrScanner() {
       }
       
       if (scannerRef.current?.isScanning) {
-        await scannerRef.current.stop();
+        try {
+          await scannerRef.current.stop();
+        } catch (e) {
+          console.error("Error stopping scanner before file scan:", e);
+        }
       }
 
       try {
         const decodedText = await scannerRef.current.scanFile(file, false);
-        onScanSuccess(decodedText);
+        await processDecodedText(decodedText);
       } catch (err: any) {
         const errorMessage = "Could not scan the QR code from the image. Please try a different file.";
         setError(errorMessage);
@@ -233,15 +237,9 @@ export function QrScanner() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div style={{ display: scannedData ? 'none' : 'block' }}>
+        <div style={{ display: scannedData || isLoading ? 'none' : 'block' }}>
           <div className="relative aspect-square w-full max-w-md mx-auto rounded-lg overflow-hidden border-4 border-dashed">
               <div id={readerId} ref={qrReaderRef} className="w-full h-full" />
-              {isLoading && (
-                  <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center">
-                      <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                      <p className="mt-4 text-lg font-medium">Processing Data...</p>
-                  </div>
-              )}
               {hasCameraPermission === false && !isLoading && (
                   <div className="absolute inset-0 bg-background/90 flex flex-col items-center justify-center p-4 text-center">
                       <Alert variant="destructive">
@@ -256,19 +254,26 @@ export function QrScanner() {
           </div>
         </div>
 
-        {error && !isLoading && (
-          <div className="flex items-center p-4 text-sm text-destructive-foreground bg-destructive rounded-lg" role="alert">
-            <AlertTriangle className="flex-shrink-0 inline w-4 h-4 mr-3" />
-            <div>
-              <span className="font-medium">Error:</span> {error}
+        {isLoading && (
+            <div className="flex flex-col items-center justify-center text-center p-8">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <p className="mt-4 text-lg font-medium">Processing Data...</p>
+                <p className="text-muted-foreground">Decrypting content and fetching location.</p>
             </div>
-          </div>
+        )}
+
+        {error && !isLoading && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Scan Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         )}
 
         {scannedData ? (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div>
-              <h3 className="font-semibold text-lg flex items-center gap-2"><MapPin className="text-green-500" /> Decrypted & Merged Data</h3>
+              <h3 className="font-semibold text-lg flex items-center gap-2"><KeyRound className="text-green-500" /> Decrypted Data</h3>
               <Card className="bg-muted/50 dark:bg-muted/20 my-2">
                 <CardContent className="p-4">
                   <pre className="text-sm font-code w-full whitespace-pre-wrap break-words">
@@ -294,24 +299,31 @@ export function QrScanner() {
                ) : (
                  <Alert>
                    <KeyRound className="h-4 w-4" />
-                   <AlertTitle>Google Maps API Key Missing</AlertTitle>
+                   <AlertTitle>Google Maps API Key is Missing</AlertTitle>
                    <AlertDescription>
-                     To display the map, please add your Google Maps API key to a 
-                     <code className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold">.env.local</code> 
-                     file as <code className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> and restart the server.
+                     To display the map, you need a Google Maps API key.
+                     <ol className="list-decimal list-inside mt-2 space-y-1">
+                        <li>Go to the <a href="https://console.cloud.google.com/google/maps-apis/overview" target="_blank" rel="noopener noreferrer" className="underline font-semibold">Google Cloud Console</a>.</li>
+                        <li>Create or select a project.</li>
+                        <li>Enable the "Maps Embed API".</li>
+                        <li>Create an API Key under "Credentials".</li>
+                        <li>Create a file named <code className="font-mono text-sm">.env.local</code> in the root of your project.</li>
+                        <li>Add the following line to it: <code className="font-mono text-sm">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=YOUR_API_KEY_HERE</code></li>
+                        <li>Replace <code className="font-mono text-sm">YOUR_API_KEY_HERE</code> with your actual key and restart the development server.</li>
+                     </ol>
                    </AlertDescription>
                  </Alert>
                )}
             </div>
 
-            <Button onClick={handleRescan} className="w-full">
+            <Button onClick={handleRescan} className="w-full" size="lg">
               <Camera className="mr-2 h-4 w-4" />
               Scan Another Code
             </Button>
           </div>
         ) : (
-           <div className="text-center space-y-4 pt-4">
-             <p className="text-muted-foreground">Align a QR code to scan, or upload an image file.</p>
+           <div className="text-center space-y-4 pt-4 border-t">
+             <p className="text-muted-foreground">If camera is unavailable, you can upload an image.</p>
              <input
               type="file"
               ref={fileInputRef}
@@ -329,3 +341,5 @@ export function QrScanner() {
     </Card>
   );
 }
+
+    
