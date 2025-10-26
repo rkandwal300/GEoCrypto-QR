@@ -89,6 +89,7 @@ export function QrScanner() {
     if (scannedData) setScannedData(null);
     setShowScanner(true);
     setIsLoading(true);
+    setIsInitializing(true);
 
     if (!scannerRef.current) {
       scannerRef.current = new Html5Qrcode(readerId, {
@@ -98,7 +99,6 @@ export function QrScanner() {
     }
     const html5Qrcode = scannerRef.current;
 
-    // Cleanup function to stop the scanner
     const cleanup = () => {
       if (
         html5Qrcode &&
@@ -111,26 +111,22 @@ export function QrScanner() {
     };
 
     try {
-      // Check for camera permissions first
       const devices = await navigator.mediaDevices.enumerateDevices();
       const hasCamera = devices.some(device => device.kind === 'videoinput');
       if (!hasCamera) {
         throw new Error("No camera found on this device.");
       }
-
-      await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
-      });
+      await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
       setHasCameraPermission(true);
 
       const config = {
         fps: 10,
         qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
           const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-          const size = Math.floor(minEdge * 0.7);
+          const qrboxSize = Math.floor(minEdge * 0.7);
           return {
-            width: size,
-            height: size,
+            width: qrboxSize,
+            height: qrboxSize,
           };
         },
         aspectRatio: 1.0,
@@ -146,11 +142,11 @@ export function QrScanner() {
 
       const qrCodeErrorCallback = (errorMessage: string) => {
         if (!errorMessage.toLowerCase().includes("not found")) {
-          console.log(`QR Scanner Error: ${errorMessage}`);
+          // console.log(`QR Scanner Error: ${errorMessage}`);
         }
       };
 
-      cleanup(); // Stop any existing scanner before starting a new one
+      cleanup();
       await html5Qrcode.start(
         { facingMode: "environment" },
         config,
@@ -160,7 +156,7 @@ export function QrScanner() {
     } catch (err: any) {
       setHasCameraPermission(false);
       let userMessage = 'Camera permission denied. Please allow camera access in your browser settings or use the upload option.';
-      if(err.message.includes("not found")) {
+      if (err.message.includes("No camera found")) {
         userMessage = "No camera found on this device. You can upload a QR code image instead.";
       }
       setError(userMessage);
@@ -177,23 +173,7 @@ export function QrScanner() {
   };
 
   useEffect(() => {
-    // Check for camera permission status on load without prompting
-    const checkPermission = async () => {
-      try {
-        if (navigator.permissions) {
-          const permissionStatus = await navigator.permissions.query({ name: 'camera' as PermissionName });
-          setHasCameraPermission(permissionStatus.state !== 'denied');
-          if (permissionStatus.state === 'denied') {
-            setError('Camera permission denied. Please allow camera access in your browser settings or use the upload option.');
-          }
-        }
-      } catch (e) {
-        console.warn("Could not query camera permission status.", e);
-      } finally {
-        setIsInitializing(false);
-      }
-    };
-    checkPermission();
+    startScanner();
 
     return () => {
       if (scannerRef.current && scannerRef.current.isScanning) {
@@ -283,12 +263,12 @@ export function QrScanner() {
       <div
         className={cn(
           "relative w-full h-full flex flex-col items-center justify-center",
-          showScanner ? "visible" : "invisible"
+          showScanner || isInitializing ? "visible" : "invisible"
         )}
       >
         <div id={readerId} className="w-full h-full object-cover"></div>
 
-        {isLoading && showScanner && (
+        {(isLoading || isInitializing) && (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white bg-black/50 p-4 z-10">
             <Loader2 className="h-10 w-10 animate-spin text-white" />
             <p className="mt-2 text-lg font-medium">Starting Camera...</p>
@@ -296,18 +276,8 @@ export function QrScanner() {
         )}
       </div>
 
-      {!showScanner && !isInitializing && (
-        <div className="flex flex-col items-center justify-center text-white p-4 text-center">
-          <Video className="w-24 h-24 mb-4 text-muted-foreground" />
-          <h2 className="text-2xl font-bold mb-2">QR Code Scanner</h2>
-          <p className="text-muted-foreground mb-6 max-w-md">
-            Press the button to start the camera or upload an image to scan.
-          </p>
-        </div>
-      )}
-
       <div className="absolute bottom-4 sm:bottom-8 z-20 flex flex-col items-center gap-4 w-full px-4">
-        {error && (
+        {error && !showScanner && (
           <Alert variant="destructive" className="max-w-md">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Scan Error</AlertTitle>
@@ -316,33 +286,6 @@ export function QrScanner() {
         )}
 
         <div className="flex w-full justify-center max-w-sm gap-4">
-          {!showScanner ? (
-            <Button
-              onClick={startScanner}
-              size="lg"
-              className="font-bold flex-1"
-              disabled={isLoading || isInitializing}
-            >
-              {isLoading || isInitializing ? (
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              ) : (
-                <Camera className="mr-2 h-5 w-5" />
-              )}
-              {isLoading ? "Starting..." : "Start Scanner"}
-            </Button>
-          ) : (
-             <Button
-                onClick={() => setShowScanner(false)}
-                variant="destructive"
-                size="lg"
-                className="font-bold flex-1"
-                disabled={isLoading}
-              >
-                <Video className="mr-2 h-5 w-5" />
-                Stop Scanner
-              </Button>
-          )}
-
           <input
             type="file"
             ref={fileInputRef}
@@ -354,12 +297,27 @@ export function QrScanner() {
             onClick={() => fileInputRef.current?.click()}
             variant="secondary"
             size="lg"
-            className="bg-white/90 hover:bg-white text-primary font-bold"
-            disabled={isLoading || showScanner}
+            className="bg-white/90 hover:bg-white text-primary font-bold flex-1"
+            disabled={isLoading || isInitializing}
           >
             <FileUp className="mr-2 h-5 w-5" />
             Upload
           </Button>
+           {showScanner && (
+             <Button
+                onClick={() => {
+                  scannerRef.current?.stop();
+                  setShowScanner(false);
+                }}
+                variant="destructive"
+                size="lg"
+                className="font-bold flex-1"
+                disabled={isLoading}
+              >
+                <Video className="mr-2 h-5 w-5" />
+                Stop Scanner
+              </Button>
+          )}
         </div>
       </div>
     </div>
