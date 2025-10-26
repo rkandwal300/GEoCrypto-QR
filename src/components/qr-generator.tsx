@@ -103,21 +103,53 @@ export function QrGenerator() {
   }
 
   const handleDownload = () => {
-    const canvas = qrCodeRef.current?.querySelector<HTMLCanvasElement>("canvas");
-    if (canvas) {
-      const link = document.createElement("a");
-      link.href = canvas.toDataURL("image/png");
-      link.download = "geocrypt-qrcode.png";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } else {
+    const originalCanvas = qrCodeRef.current?.querySelector<HTMLCanvasElement>('canvas');
+    if (!originalCanvas) {
       toast({
-        variant: "destructive",
-        title: "Download failed",
-        description: "Could not find the QR code canvas.",
+        variant: 'destructive',
+        title: 'Download failed',
+        description: 'Could not find the QR code canvas.',
       });
+      return;
     }
+
+    // Create a new, larger canvas for a high-quality download
+    const downloadCanvas = document.createElement('canvas');
+    const scale = 4; // Upscale for better quality
+    const size = originalCanvas.width * scale;
+    const padding = size * 0.1; // 10% padding
+    downloadCanvas.width = size + padding * 2;
+    downloadCanvas.height = size + padding * 2;
+    const ctx = downloadCanvas.getContext('2d');
+
+    if (!ctx) {
+        toast({
+            variant: 'destructive',
+            title: 'Download failed',
+            description: 'Could not create a canvas for downloading.',
+        });
+        return;
+    }
+
+    // Fill background with white
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, downloadCanvas.width, downloadCanvas.height);
+    
+    // Draw the original QR code canvas onto the new canvas, centered with padding
+    ctx.drawImage(originalCanvas, padding, padding, size, size);
+
+    // Trigger download
+    const link = document.createElement('a');
+    link.href = downloadCanvas.toDataURL('image/png');
+    link.download = 'geocrypt-qrcode.png';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+        title: 'Download started',
+        description: 'Your QR code is being downloaded.',
+    });
   };
 
   const shareQrCode = async (qrFile: File) => {
