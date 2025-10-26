@@ -173,15 +173,8 @@ export function QrScanner() {
   };
 
   useEffect(() => {
-    startScanner();
-
-    return () => {
-      if (scannerRef.current && scannerRef.current.isScanning) {
-        scannerRef.current
-          .stop()
-          .catch((err) => console.error("Ignoring scanner stop error on unmount", err));
-      }
-    };
+    // We will now let the user start the scanner with a button
+    // to comply with browser security policies.
   }, []);
 
   const handleFileChange = async (
@@ -248,7 +241,7 @@ export function QrScanner() {
                 </CardContent>
               </Card>
             </div>
-            <Button onClick={startScanner} className="w-full" size="lg">
+            <Button onClick={() => { setScannedData(null); setShowScanner(false); setIsInitializing(true); }} className="w-full" size="lg">
               <RefreshCw className="mr-2 h-5 w-5" />
               Scan Another Code
             </Button>
@@ -260,38 +253,40 @@ export function QrScanner() {
 
   return (
     <div className="w-full h-[calc(100vh-8rem)] flex flex-col items-center justify-center bg-black p-4">
-      <div
-        className={cn(
-          "relative w-full max-w-full aspect-square flex flex-col items-center justify-center overflow-hidden",
-          showScanner || isInitializing ? "visible" : "invisible"
-        )}
-      >
-        <div id={readerId} className="w-full h-full"></div>
-
+      {!showScanner ? (
+        <div className="flex flex-col items-center justify-center text-center text-white gap-6">
+            {(isInitializing || isLoading) && <Loader2 className="h-10 w-10 animate-spin text-white" />}
+            <h1 className="text-2xl font-bold">QR Code Scanner</h1>
+            <p className="max-w-md text-muted-foreground">
+                { hasCameraPermission === false
+                    ? "Camera access was denied. Please grant camera access in your browser settings to use the scanner, or upload an image."
+                    : "Press the button below to start scanning with your camera."
+                }
+            </p>
+            <Button onClick={startScanner} size="lg" disabled={isLoading}>
+                <Camera className="mr-2 h-5 w-5" />
+                Start Scanner
+            </Button>
+            {error && (
+              <Alert variant="destructive" className="max-w-md mt-4">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Scanner Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+        </div>
+      ) : (
         <div
-          style={{
-            boxShadow: 'rgb(0 0 0 / 50%) 0px 0px 0px 5000px',
-          }}
-          className="absolute left-1/2 top-1/2 w-[70%] h-[70%] -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-        ></div>
+            className={cn(
+            "relative w-full max-w-full aspect-square flex flex-col items-center justify-center overflow-hidden"
+            )}
+        >
+            <div id={readerId} className="w-full h-full"></div>
+        </div>
+      )}
 
-        {(isLoading || isInitializing) && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white bg-black/50 p-4 z-10">
-            <Loader2 className="h-10 w-10 animate-spin text-white" />
-            <p className="mt-2 text-lg font-medium">Starting Camera...</p>
-          </div>
-        )}
-      </div>
 
       <div className="absolute bottom-4 sm:bottom-8 z-20 flex flex-col items-center gap-4 w-full px-4">
-        {error && !showScanner && (
-          <Alert variant="destructive" className="max-w-md">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Scan Error</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
         <div className="flex w-full justify-center max-w-sm gap-4">
           <input
             type="file"
@@ -313,7 +308,9 @@ export function QrScanner() {
            {showScanner && (
              <Button
                 onClick={() => {
-                  scannerRef.current?.stop();
+                  if (scannerRef.current?.isScanning) {
+                    scannerRef.current?.stop();
+                  }
                   setShowScanner(false);
                 }}
                 variant="destructive"
