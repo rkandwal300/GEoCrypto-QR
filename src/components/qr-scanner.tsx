@@ -1,7 +1,12 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Html5Qrcode, Html5QrcodeScannerState } from "html5-qrcode";
+import {
+  Html5Qrcode,
+  Html5QrcodeScannerState,
+  Html5QrcodeSupportedFormats,
+} from "html5-qrcode";
 import {
   ScanLine,
   MapPin,
@@ -22,18 +27,9 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { decryptData } from "@/lib/crypto";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { cn } from "@/lib/utils";
 
 type ScannedDataType = {
   data: any;
-  scanDetails: {
-    location: {
-      latitude: number;
-      longitude: number;
-      accuracy: number;
-    };
-    scannedAt: string;
-  };
 };
 
 export function QrScanner() {
@@ -54,7 +50,7 @@ export function QrScanner() {
   const stopScanner = () => {
     if (
       scannerRef.current &&
-      scannerRef.current.getState() === Html5QrcodeScannerState.SCANNING
+      scannerRef.current.isScanning
     ) {
       scannerRef.current
         .stop()
@@ -64,7 +60,10 @@ export function QrScanner() {
 
   useEffect(() => {
     if (!scannerRef.current) {
-        scannerRef.current = new Html5Qrcode(readerId, false);
+      scannerRef.current = new Html5Qrcode(readerId, {
+        verbose: false,
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+      });
     }
     const html5Qrcode = scannerRef.current;
 
@@ -79,26 +78,30 @@ export function QrScanner() {
         });
         setHasCameraPermission(true);
 
+        const config = {
+          fps: 10,
+          qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+            const qrboxSize = Math.floor(minEdge * 0.7);
+            return {
+              width: qrboxSize,
+              height: qrboxSize,
+            };
+          },
+          // This is the important part - it creates the focus window effect
+          showISOCode: false,
+          disableFlip: false,
+          
+        };
+
         html5Qrcode.start(
           { facingMode: "environment" },
-          {
-            fps: 10,
-            qrbox: (viewfinderWidth, viewfinderHeight) => {
-                const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                const qrboxSize = Math.floor(minEdge * 0.7);
-                return {
-                  width: qrboxSize,
-                  height: qrboxSize,
-                };
-              },
-            disableFlip: false,
-          },
+          config,
           (decodedText) => {
-            if (isLoading) return; // Prevent multiple scans
+            if (isLoading) return;
             processDecodedText(decodedText);
           },
           (errorMessage) => {
-            // This callback is called frequently, ignore common non-errors.
             if (!errorMessage.toLowerCase().includes("not found")) {
                 console.log(`QR Scanner Error: ${errorMessage}`);
             }
@@ -135,38 +138,12 @@ export function QrScanner() {
 
     try {
       const decrypted = decryptData(decodedText);
-      
-      const location = await new Promise<GeolocationCoordinates>(
-        (resolve, reject) => {
-          if (!navigator.geolocation) {
-            reject(new Error("Geolocation is not supported by your browser."));
-            return;
-          }
-          navigator.geolocation.getCurrentPosition(
-            (position) => resolve(position.coords),
-            (err) => reject(new Error(err.message)),
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-          );
-        }
-      );
-
-      const mergedData = {
-        data: decrypted,
-        scanDetails: {
-          scannedAt: new Date().toISOString(),
-          location: {
-            latitude: location.latitude,
-            longitude: location.longitude,
-            accuracy: location.accuracy,
-          },
-        },
-      };
-
-      setScannedData(mergedData as ScannedDataType);
+      const mergedData = { data: decrypted };
+      setScannedData(mergedData);
       setError(null);
       toast({
         title: "Success!",
-        description: "QR code decrypted and location appended.",
+        description: "QR code decrypted.",
         className: "bg-green-100 dark:bg-green-900",
       });
     } catch (e: any) {
@@ -178,7 +155,6 @@ export function QrScanner() {
         title: "Scan Error",
         description: errorMessage,
       });
-      // Don't auto-rescan on error, let the user decide.
     } finally {
       setIsLoading(false);
     }
@@ -221,10 +197,6 @@ export function QrScanner() {
     }
   };
 
-  const mapUrl =
-    scannedData && mapsApiKey
-      ? `https://www.google.com/maps/embed/v1/place?key=${mapsApiKey}&q=${scannedData.scanDetails.location.latitude},${scannedData.scanDetails.location.longitude}`
-      : "";
 
   if (scannedData) {
     return (
@@ -232,7 +204,7 @@ export function QrScanner() {
         <Card className="shadow-lg">
           <CardHeader className="text-center">
              <div className="mx-auto bg-primary/10 p-3 rounded-full w-fit">
-                <ScanLine className="w-8 h-8 text-primary" />
+                <KeyRound className="w-8 h-8 text-primary" />
              </div>
              <CardTitle className="font-headline text-3xl mt-4">
                Scan Result
@@ -241,80 +213,16 @@ export function QrScanner() {
           <CardContent className="space-y-6">
              <div>
               <h3 className="font-semibold text-xl flex items-center gap-2">
-                <KeyRound className="text-green-500" /> Decrypted Data
+                 Decrypted Data
               </h3>
               <Card className="bg-muted/50 dark:bg-muted/20 my-2">
                 <CardContent className="p-4">
                   <pre className="text-sm font-code w-full whitespace-pre-wrap break-words">
-                    {JSON.stringify(scannedData, null, 2)}
+                    {JSON.stringify(scannedData.data, null, 2)}
                   </pre>
                 </CardContent>
               </Card>
             </div>
-
-            <div>
-              <h3 className="font-semibold text-xl flex items-center gap-2">
-                <MapPin className="text-blue-500" /> Scan Location
-              </h3>
-              {mapsApiKey ? (
-                <div className="aspect-video w-full rounded-lg overflow-hidden border mt-2">
-                  <iframe
-                    width="100%"
-                    height="100%"
-                    style={{ border: 0 }}
-                    loading="lazy"
-                    allowFullScreen
-                    src={mapUrl}
-                  ></iframe>
-                </div>
-              ) : (
-                <Alert>
-                  <KeyRound className="h-4 w-4" />
-                  <AlertTitle>Google Maps API Key is Missing</AlertTitle>
-                  <AlertDescription>
-                    To display the map, you need a Google Maps API key.
-                    <ol className="list-decimal list-inside mt-2 space-y-1">
-                      <li>
-                        Go to the{" "}
-                        <a
-                          href="https://console.cloud.google.com/google/maps-apis/overview"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="underline font-semibold"
-                        >
-                          Google Cloud Console
-                        </a>
-                        .
-                      </li>
-                      <li>Create or select a project.</li>
-                      <li>Enable the "Maps Embed API".</li>
-                      <li>Create an API Key under "Credentials".</li>
-                      <li>
-                        Create a file named{" "}
-                        <code className="font-mono text-sm bg-muted p-1 rounded-sm">
-                          .env.local
-                        </code>{" "}
-                        in your project's root folder.
-                      </li>
-                      <li>
-                        Add the following line to it:{" "}
-                        <code className="font-mono text-sm bg-muted p-1 rounded-sm">
-                          NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=YOUR_API_KEY_HERE
-                        </code>
-                      </li>
-                      <li>
-                        Replace{" "}
-                        <code className="font-mono text-sm">
-                          YOUR_API_KEY_HERE
-                        </code>{" "}
-                        with your actual key and restart the server.
-                      </li>
-                    </ol>
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
-
             <Button onClick={handleRescan} className="w-full" size="lg">
               <RefreshCw className="mr-2 h-5 w-5" />
               Scan Another Code
@@ -329,20 +237,9 @@ export function QrScanner() {
     <div className="relative w-full h-[calc(100vh-8rem)] max-h-screen overflow-hidden flex flex-col items-center justify-center bg-black">
       <div id={readerId} className="absolute inset-0 w-full h-full"></div>
       
-      {/* Overlay with cutout */}
-      <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-        <div
-          className="w-[70vw] max-w-[400px] aspect-square"
-          style={{
-            boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.5)',
-          }}
-        >
-        </div>
-      </div>
-      
       <div className="absolute bottom-10 z-20 flex flex-col items-center gap-4 w-full px-4">
         {(isLoading && hasCameraPermission !== false) && (
-            <div className="flex flex-col items-center justify-center text-center text-white">
+            <div className="flex flex-col items-center justify-center text-center text-white bg-black/50 p-4 rounded-lg">
                 <Loader2 className="h-10 w-10 animate-spin text-white" />
                 <p className="mt-2 text-lg font-medium">Starting Camera...</p>
             </div>
@@ -391,3 +288,5 @@ export function QrScanner() {
     </div>
   );
 }
+
+    
