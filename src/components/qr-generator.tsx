@@ -32,17 +32,25 @@ import { encryptData } from "@/lib/crypto";
 const formSchema = z.object({
   jsonData: z
     .string()
-    .min(1, "JSON data cannot be empty.")
+    .min(1, "Data cannot be empty.")
     .refine(
       (value) => {
         try {
+          // First, try to parse it as-is (valid JSON)
           JSON.parse(value);
           return true;
-        } catch {
-          return false;
+        } catch (e) {
+          try {
+            // If that fails, try the object literal conversion trick
+            const jsonString = JSON.stringify(new Function(`return ${value}`)());
+            JSON.parse(jsonString); // Final check to ensure the output is valid JSON
+            return true;
+          } catch (err) {
+            return false;
+          }
         }
       },
-      { message: "Invalid JSON format." }
+      { message: "Invalid JSON or JavaScript object format." }
     ),
 });
 
@@ -59,21 +67,22 @@ export function QrGenerator() {
   });
   
   const handleDataChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
-    try {
-      // This is a trick to convert a JS object literal string to a JSON string.
-      // We are NOT using eval() for security reasons.
-      const jsonString = JSON.stringify(new Function(`return ${value}`)());
-      form.setValue('jsonData', jsonString, { shouldValidate: true });
-    } catch (err) {
-      form.setValue('jsonData', value, { shouldValidate: true });
-    }
+    form.setValue('jsonData', e.target.value, { shouldValidate: true });
   };
 
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      const json = JSON.parse(values.jsonData);
+      let json;
+      try {
+        // Attempt to parse as-is
+        json = JSON.parse(values.jsonData);
+      } catch (e) {
+        // If it fails, convert from object literal
+        const jsonString = JSON.stringify(new Function(`return ${values.jsonData}`)());
+        json = JSON.parse(jsonString);
+      }
+
       const encrypted = encryptData(json);
       setQrValue(encrypted);
       toast({
@@ -151,7 +160,7 @@ export function QrGenerator() {
           Generate Secure QR
         </CardTitle>
         <CardDescription>
-          Enter your JSON data, and we'll encrypt it into a secure QR code.
+          Enter your JSON data or JS Object, and we'll encrypt it into a secure QR code.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -162,10 +171,10 @@ export function QrGenerator() {
               name="jsonData"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>JSON Payload</FormLabel>
+                  <FormLabel>JSON / JS Object Payload</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder={'{\n  "id": "12345",\n  "sensitive_data": "user@example.com"\n}'}
+                      placeholder={'{\n  id: "12345",\n  "sensitive_data": "user@example.com"\n}'}
                       className="min-h-[150px] font-code text-sm"
                       {...field}
                       onChange={handleDataChange}
