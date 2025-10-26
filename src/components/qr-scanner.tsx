@@ -149,34 +149,52 @@ export function QrScanner() {
   };
 
   const handleCapture = async () => {
-    if (videoRef.current && canvasRef.current && isScanning) {
-        setIsLoading(true);
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const context = canvas.getContext('2d');
-        if(context) {
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            stopCamera();
-            try {
-                // Re-initialize for file scanning
-                const fileScanner = new Html5Qrcode(readerId, false);
-                const imageDataUrl = canvas.toDataURL('image/png');
-                const decodedText = await fileScanner.scanFile(dataURLtoFile(imageDataUrl, 'capture.png'), false);
-                await processDecodedText(decodedText);
-            } catch (err) {
-                 const errorMessage = "Could not decode QR code from the captured image. Please try again.";
-                 setError(errorMessage);
-                 toast({
-                    variant: "destructive",
-                    title: "Capture Error",
-                    description: errorMessage,
-                 });
-                 setIsLoading(false);
-                 handleRescan();
+    if (!videoRef.current || !canvasRef.current || !isScanning) return;
+    
+    setIsLoading(true);
+    stopCamera(); 
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext('2d');
+
+    if (context) {
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        try {
+            const imageDataUrl = canvas.toDataURL('image/png');
+            const imageFile = dataURLtoFile(imageDataUrl, 'capture.png');
+            
+            if (!scannerRef.current) {
+              scannerRef.current = new Html5Qrcode(readerId, false);
             }
+
+            const decodedText = await scannerRef.current.scanFile(imageFile, false);
+            await processDecodedText(decodedText);
+
+        } catch (err) {
+             const errorMessage = "Could not decode QR code from the captured image. Please try again.";
+             setError(errorMessage);
+             toast({
+                variant: "destructive",
+                title: "Capture Error",
+                description: errorMessage,
+             });
+             setIsLoading(false);
+             handleRescan();
         }
+    } else {
+        const errorMessage = "Could not get canvas context to capture image.";
+        setError(errorMessage);
+        toast({
+            variant: "destructive",
+            title: "Capture Error",
+            description: errorMessage,
+        });
+        setIsLoading(false);
+        handleRescan();
     }
   }
 
@@ -205,8 +223,10 @@ export function QrScanner() {
       stopCamera();
 
       try {
-        const fileScanner = new Html5Qrcode(readerId, false);
-        const decodedText = await fileScanner.scanFile(file, false);
+        if (!scannerRef.current) {
+          scannerRef.current = new Html5Qrcode(readerId, false);
+        }
+        const decodedText = await scannerRef.current.scanFile(file, false);
         await processDecodedText(decodedText);
       } catch (err: any) {
         const errorMessage = "Could not scan the QR code from the image. Please try a different file.";
