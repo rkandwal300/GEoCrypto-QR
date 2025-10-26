@@ -132,7 +132,6 @@ export function QrScanner() {
           height: qrboxSize,
         };
       },
-      aspectRatio: 1.0,
       showTorchButtonIfSupported: true,
       rememberLastUsedCamera: true,
     };
@@ -295,7 +294,7 @@ export function QrScanner() {
 
   return (
     <div className="fixed inset-0 bg-black flex items-center justify-center">
-      <div className="w-full h-full">
+      <div className="w-full h-full relative">
         {error && !hasCameraPermission && (
           <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/80">
             <Alert variant="destructive" className="max-w-md text-left">
@@ -338,5 +337,3 @@ export function QrScanner() {
     </div>
   );
 }
-
-    
