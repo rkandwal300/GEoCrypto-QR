@@ -11,7 +11,6 @@ import {
   FileUp,
   KeyRound,
   Loader2,
-  MapPin,
   RefreshCw,
 } from "lucide-react";
 
@@ -27,19 +26,10 @@ import { useToast } from "@/hooks/use-toast";
 import { decryptData } from "@/lib/crypto";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-type ScannedDataType = {
-  data: any;
-  location?: {
-    latitude: number;
-    longitude: number;
-  };
-};
-
 export function QrScanner() {
-  const [scannedData, setScannedData] = useState<ScannedDataType | null>(null);
+  const [scannedData, setScannedData] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [showStartButton, setShowStartButton] = useState(true);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -54,55 +44,16 @@ export function QrScanner() {
         .catch((err) => console.log("Error stopping scanner", err));
     }
     setIsLoading(true);
-    setShowStartButton(true); // Show start button for next scan
 
     try {
       const decrypted = decryptData(decodedText);
-      const dataToSet =
-        typeof decrypted.data === "object" ? decrypted.data : decrypted;
+      setScannedData(decrypted);
 
       toast({
         title: "Success!",
-        description: "QR code decrypted. Fetching location...",
+        description: "QR code decrypted successfully.",
         className: "bg-accent text-accent-foreground",
       });
-
-      if ("geolocation" in navigator) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const { latitude, longitude } = position.coords;
-            setScannedData({
-              data: dataToSet,
-              location: { latitude, longitude },
-            });
-            setIsLoading(false);
-            toast({
-              title: "Location Acquired!",
-              description: "Your location has been added to the data.",
-            });
-          },
-          (locationError) => {
-            console.error("Geolocation error:", locationError);
-            setScannedData({ data: dataToSet }); // Set data without location
-            setIsLoading(false);
-            toast({
-              variant: "destructive",
-              title: "Location Error",
-              description:
-                "Could not get your location. Displaying QR data only.",
-            });
-          }
-        );
-      } else {
-        setScannedData({ data: dataToSet }); // Set data without location
-        setIsLoading(false);
-        toast({
-          variant: "destructive",
-          title: "Geolocation Not Supported",
-          description:
-            "Your browser does not support geolocation. Displaying QR data only.",
-        });
-      }
     } catch (e: any) {
       const errorMessage =
         e instanceof Error ? e.message : "Invalid or corrupted QR code.";
@@ -113,23 +64,18 @@ export function QrScanner() {
         title: "Scan Error",
         description: errorMessage,
       });
-      setIsLoading(false);
+    } finally {
+        setIsLoading(false);
     }
   };
 
   const startScanner = async () => {
-    if (scannerRef.current?.isScanning) {
-      return;
-    }
-    
     setError(null);
     if (scannedData) setScannedData(null);
     setIsLoading(true);
-    setShowStartButton(false);
 
-    // Ensure the container is visible before starting
-    await new Promise(resolve => setTimeout(resolve, 100));
-
+    // Give the UI time to render the reader element
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     const config = {
       fps: 10,
@@ -172,11 +118,14 @@ export function QrScanner() {
       );
     } catch (err: any) {
       let userMessage = 'Camera permission denied. Please grant camera access in your browser settings to use the scanner.';
-      if (err.message.includes("not found")) {
-        userMessage = err.message;
+      if (err.name === "NotAllowedError") {
+         userMessage = "Camera access was denied. You'll need to grant permission in your browser settings to use the scanner."
+      } else if (err.message && err.message.includes("not found")) {
+        userMessage = "No suitable camera found on this device.";
+      } else {
+        userMessage = "Failed to start the camera. Please check permissions and ensure no other app is using it."
       }
       setError(userMessage);
-      setShowStartButton(true);
       toast({
         variant: "destructive",
         title: "Camera Access Issue",
@@ -188,7 +137,15 @@ export function QrScanner() {
   };
 
   useEffect(() => {
-    // This effect now only handles cleanup
+     // Check if we are in a browser environment
+    if (typeof window !== "undefined") {
+      setTimeout(() => {
+        if (!scannerRef.current?.isScanning && !scannedData) {
+            startScanner();
+        }
+      }, 50)
+    }
+
     return () => {
       if (scannerRef.current?.isScanning) {
         scannerRef.current.stop().catch(err => {
@@ -196,7 +153,7 @@ export function QrScanner() {
         });
       }
     };
-  }, []);
+  }, [scannedData]);
 
   const handleFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>
@@ -232,14 +189,6 @@ export function QrScanner() {
     }
   };
 
-  if (isLoading && !showStartButton) {
-    return (
-      <div className="w-full h-full flex flex-col items-center justify-center p-4">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="mt-4 text-muted-foreground">Starting camera...</p>
-      </div>
-    );
-  }
 
   if (scannedData) {
     return (
@@ -261,44 +210,13 @@ export function QrScanner() {
                   <pre className="text-sm font-code w-full whitespace-pre-wrap break-words">
                     {typeof scannedData.data === "string"
                       ? scannedData.data
-                      : JSON.stringify(scannedData.data, null, 2)}
+                      : JSON.stringify(scannedData, null, 2)}
                   </pre>
                 </CardContent>
               </Card>
             </div>
 
-            {scannedData.location && (
-              <div>
-                <h3 className="font-semibold text-xl flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-primary" />
-                  Scanned Location
-                </h3>
-                <Card className="bg-muted/50 dark:bg-muted/20 my-2">
-                  <CardContent className="p-4 space-y-2">
-                    <p className="font-mono text-sm">
-                      Lat: {scannedData.location.latitude}
-                    </p>
-                    <p className="font-mono text-sm">
-                      Lon: {scannedData.location.longitude}
-                    </p>
-                    <div className="aspect-video rounded-md overflow-hidden mt-2 border">
-                      <iframe
-                        width="100%"
-                        height="100%"
-                        loading="lazy"
-                        allowFullScreen
-                        src={`https://www.google.com/maps/embed/v1/place?key=REPLACE_WITH_YOUR_API_KEY&q=${scannedData.location.latitude},${scannedData.location.longitude}`}
-                      ></iframe>
-                    </div>
-                     <CardDescription className="text-xs pt-2">
-                      Note: You need a Google Maps API key for the map to display correctly.
-                    </CardDescription>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-
-            <Button onClick={() => { setScannedData(null); setError(null); setShowStartButton(true); }} className="w-full" size="lg">
+            <Button onClick={() => { setScannedData(null); setError(null); }} className="w-full" size="lg">
               <RefreshCw className="mr-2 h-5 w-5" />
               Scan Another Code
             </Button>
@@ -310,52 +228,41 @@ export function QrScanner() {
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-center p-4 relative">
-       {showStartButton ? (
-         <Card className="text-center p-8 max-w-md">
-            <CardHeader>
-                <CardTitle className="text-2xl">Ready to Scan?</CardTitle>
-                <CardDescription>
-                Click the button below to start the camera and scan a QR code.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Button onClick={startScanner} size="lg">Start Scanner</Button>
-                {error && (
-                    <Alert variant="destructive" className="mt-4 text-left">
-                        <AlertTitle>Error</AlertTitle>
-                        <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                )}
-            </CardContent>
-         </Card>
-       ) : (
-        <>
-            <div className="w-full max-w-md aspect-square relative flex items-center justify-center rounded-lg overflow-hidden shadow-2xl bg-black">
-                <div id={readerId} className="w-full h-full" />
+       {error && (
+            <Alert variant="destructive" className="max-w-md absolute top-10 text-left z-10">
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+            </Alert>
+        )}
+       {isLoading && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 z-20">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <p className="mt-4 text-muted-foreground">Starting camera...</p>
             </div>
-            
-            <div className="mt-6 flex w-full justify-center max-w-sm gap-4">
-                <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    accept="image/png, image/jpeg, image/gif"
-                    className="hidden"
-                />
-                <Button
-                    onClick={() => fileInputRef.current?.click()}
-                    variant="secondary"
-                    size="lg"
-                    className="bg-white/90 hover:bg-white text-primary font-bold flex-1"
-                >
-                    <FileUp className="mr-2 h-5 w-5" />
-                    Upload
-                </Button>
-            </div>
-        </>
-       )}
+        )}
+        <div className="w-full max-w-md aspect-square relative flex items-center justify-center rounded-lg overflow-hidden shadow-2xl bg-black">
+            <div id={readerId} className="w-full h-full" />
+        </div>
+        
+        <div className="mt-6 flex w-full justify-center max-w-sm gap-4">
+            <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept="image/png, image/jpeg, image/gif"
+                className="hidden"
+            />
+            <Button
+                onClick={() => fileInputRef.current?.click()}
+                variant="secondary"
+                size="lg"
+                className="bg-white/90 hover:bg-white text-primary font-bold flex-1"
+                disabled={isLoading}
+            >
+                <FileUp className="mr-2 h-5 w-5" />
+                Upload
+            </Button>
+        </div>
     </div>
   );
 }
-
-    
