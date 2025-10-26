@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Html5Qrcode, Html5QrcodeScannerState } from "html5-qrcode";
-import { Camera, ScanLine, MapPin, AlertTriangle, Loader2, FileUp } from "lucide-react";
+import { Camera, ScanLine, MapPin, AlertTriangle, Loader2, FileUp, KeyRound } from "lucide-react";
 
 import {
   Card,
@@ -22,10 +22,12 @@ type ScannedDataType = {
     location: {
       latitude: number;
       longitude: number;
-    }
-  }
-} & object;
-
+      accuracy: number;
+    };
+    scannedAt: string;
+  };
+  [key: string]: any;
+};
 
 export function QrScanner() {
   const [scannedData, setScannedData] = useState<ScannedDataType | null>(null);
@@ -34,18 +36,17 @@ export function QrScanner() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const qrReaderRef = useRef<HTMLDivElement>(null);
   const readerId = "qr-code-reader";
-
   const { toast } = useToast();
+  const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
   const startScanner = async () => {
     setError(null);
     setScannedData(null);
-
-    // Ensure the container is visible for the scanner to initialize
-    const qrReaderElement = document.getElementById(readerId);
-    if (qrReaderElement) {
-        qrReaderElement.style.display = 'block';
+    
+    if (qrReaderRef.current) {
+        qrReaderRef.current.style.display = 'block';
     }
 
     if (!scannerRef.current) {
@@ -60,6 +61,9 @@ export function QrScanner() {
       const cameras = await Html5Qrcode.getCameras();
       if (cameras && cameras.length) {
         setHasCameraPermission(true);
+        if (scannerRef.current.isScanning) {
+          await scannerRef.current.stop();
+        }
         await scannerRef.current?.start(
           { facingMode: "environment" },
           {
@@ -151,6 +155,9 @@ export function QrScanner() {
       handleRescan();
     } finally {
       setIsLoading(false);
+      if (qrReaderRef.current) {
+        qrReaderRef.current.style.display = 'none';
+      }
     }
   };
 
@@ -159,17 +166,19 @@ export function QrScanner() {
   };
   
   const handleRescan = async () => {
-    setIsLoading(true); // Show loading state briefly
     setError(null);
     setScannedData(null);
   
     // Brief timeout to allow React to re-render and show the scanner UI
     setTimeout(async () => {
-      setIsLoading(false);
-      if (hasCameraPermission) {
-        // Now that the element is visible again, restart the scanner
-        await startScanner();
-      }
+        if (qrReaderRef.current) {
+            qrReaderRef.current.style.display = 'block';
+        }
+        if (scannerRef.current?.getState() === Html5QrcodeScannerState.PAUSED) {
+            scannerRef.current.resume();
+        } else if (hasCameraPermission) {
+            await startScanner();
+        }
     }, 100);
   };
 
@@ -208,8 +217,8 @@ export function QrScanner() {
     }
   };
 
-  const mapUrl = scannedData 
-    ? `https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&q=${scannedData.scanDetails.location.latitude},${scannedData.scanDetails.location.longitude}`
+  const mapUrl = (scannedData && mapsApiKey)
+    ? `https://www.google.com/maps/embed/v1/place?key=${mapsApiKey}&q=${scannedData.scanDetails.location.latitude},${scannedData.scanDetails.location.longitude}`
     : "";
 
   return (
@@ -226,7 +235,7 @@ export function QrScanner() {
       <CardContent className="space-y-6">
         <div style={{ display: scannedData ? 'none' : 'block' }}>
           <div className="relative aspect-square w-full max-w-md mx-auto rounded-lg overflow-hidden border-4 border-dashed">
-              <div id={readerId} className="w-full h-full" />
+              <div id={readerId} ref={qrReaderRef} className="w-full h-full" />
               {isLoading && (
                   <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center">
                       <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -271,16 +280,28 @@ export function QrScanner() {
             
             <div>
                <h3 className="font-semibold text-lg flex items-center gap-2"><MapPin className="text-blue-500" /> Scan Location</h3>
-               <div className="aspect-video w-full rounded-lg overflow-hidden border mt-2">
-                 <iframe
-                   width="100%"
-                   height="100%"
-                   style={{ border: 0 }}
-                   loading="lazy"
-                   allowFullScreen
-                   src={mapUrl}>
-                 </iframe>
-               </div>
+               {mapsApiKey ? (
+                 <div className="aspect-video w-full rounded-lg overflow-hidden border mt-2">
+                   <iframe
+                     width="100%"
+                     height="100%"
+                     style={{ border: 0 }}
+                     loading="lazy"
+                     allowFullScreen
+                     src={mapUrl}>
+                   </iframe>
+                 </div>
+               ) : (
+                 <Alert>
+                   <KeyRound className="h-4 w-4" />
+                   <AlertTitle>Google Maps API Key Missing</AlertTitle>
+                   <AlertDescription>
+                     To display the map, please add your Google Maps API key to a 
+                     <code className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold">.env.local</code> 
+                     file as <code className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> and restart the server.
+                   </AlertDescription>
+                 </Alert>
+               )}
             </div>
 
             <Button onClick={handleRescan} className="w-full">
