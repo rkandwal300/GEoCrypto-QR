@@ -10,7 +10,6 @@ import {
   FileUp,
   KeyRound,
   RefreshCw,
-  Video,
 } from "lucide-react";
 
 import {
@@ -26,7 +25,7 @@ import { decryptData } from "@/lib/crypto";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 type ScannedDataType = {
-  data: string;
+  data: any;
   scanDetails: {
     location: {
       latitude: number;
@@ -332,29 +331,23 @@ export function QrScanner() {
       <div id={readerId} className="absolute inset-0 w-full h-full"></div>
       
       {/* Overlay with cutout */}
-      <div className="absolute inset-0 z-10" style={{
-          boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.5)',
-          backdropFilter: 'blur(4px)',
-      }}>
-          <div className="relative mx-auto mt-[20vh] w-[70vw] h-[70vw] max-w-[400px] max-h-[400px] border-4 border-white/80 rounded-3xl">
-            {/* Animated scanning line */}
-            {!isLoading && hasCameraPermission && (
-                 <div className="absolute top-0 left-0 w-full h-1.5 bg-primary/80 shadow-[0_0_10px] shadow-primary animate-[scan-y_2s_ease-in-out_infinite]"
-                    style={{
-                        animationName: 'scan-y',
-                        animationDuration: '3s',
-                        animationTimingFunction: 'ease-in-out',
-                        animationIterationCount: 'infinite',
-                    }}
-                 />
-            )}
-             <style jsx>{`
-                @keyframes scan-y {
-                    0%, 100% { top: 0; }
-                    50% { top: calc(100% - 6px); }
-                }
-             `}</style>
+      <div className="absolute inset-0 z-10 flex items-center justify-center">
+        <div className="relative w-[70vw] max-w-[400px] aspect-square">
+          {/* Blurred Panels */}
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+
+          {/* Un-blurred Center Box */}
+          <div
+            className="absolute top-1/2 left-1/2 w-full h-full"
+            style={{
+              transform: 'translate(-50%, -50%)',
+              boxShadow: '0 0 0 9999px rgba(0,0,0,0.5)',
+            }}
+          >
+             {/* Border for the cutout */}
+             <div className="w-full h-full border-4 border-white/80 rounded-3xl"></div>
           </div>
+        </div>
       </div>
       
       <div className="absolute bottom-10 z-20 flex flex-col items-center gap-4">
@@ -408,5 +401,3 @@ export function QrScanner() {
     </div>
   );
 }
-
-    
