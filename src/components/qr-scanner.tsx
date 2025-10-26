@@ -40,7 +40,7 @@ export function QrScanner() {
   const [scannedData, setScannedData] = useState<ScannedDataType | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [hasCameraPermission, setHasCameraPermission] = useState(false);
+  const [hasCameraPermission, setHasCameraPermission] = useState(true);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -117,7 +117,11 @@ export function QrScanner() {
     if (scannedData) setScannedData(null);
     setIsLoading(true);
 
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Ensure the element exists before starting
+    if (!document.getElementById(readerId)) {
+        setTimeout(startScanner, 100);
+        return;
+    }
 
     const config = {
       fps: 10,
@@ -163,13 +167,13 @@ export function QrScanner() {
       let userMessage = 'Camera permission denied. Please grant camera access in your browser settings to use the scanner.';
       if (err.name === "NotAllowedError") {
          userMessage = "Camera access was denied. You'll need to grant permission in your browser settings to use the scanner."
+         setHasCameraPermission(false);
       } else if (err.message && err.message.includes("not found")) {
         userMessage = "No suitable camera found on this device.";
       } else {
         userMessage = "Failed to start the camera. Please check permissions and ensure no other app is using it."
       }
       setError(userMessage);
-      setHasCameraPermission(false);
       toast({
         variant: "destructive",
         title: "Camera Access Issue",
@@ -181,9 +185,13 @@ export function QrScanner() {
   };
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      startScanner();
-    }
+    // A small timeout ensures the container div is rendered before the scanner tries to hook into it.
+    setTimeout(() => {
+        if (typeof window !== "undefined") {
+            startScanner();
+        }
+    }, 100);
+
 
     return () => {
       if (scannerRef.current?.isScanning) {
@@ -248,7 +256,7 @@ export function QrScanner() {
                   <pre className="text-sm font-code w-full whitespace-pre-wrap break-words">
                     {typeof scannedData.data.data === "string"
                       ? scannedData.data.data
-                      : JSON.stringify(scannedData.data, null, 2)}
+                      : JSON.stringify(scannedData.data.data, null, 2)}
                   </pre>
                 </CardContent>
               </Card>
@@ -287,44 +295,46 @@ export function QrScanner() {
   }
 
   return (
-    <div className="fixed inset-0 bg-black">
-      {error && !hasCameraPermission && (
-        <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/80">
-          <Alert variant="destructive" className="max-w-md text-left">
-              <AlertTitle>Camera Error</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-              <Button onClick={startScanner} className="mt-4">Try Again</Button>
-          </Alert>
-        </div>
-      )}
+    <div className="fixed inset-0 bg-black flex items-center justify-center">
+      <div className="w-full h-full max-w-full max-h-full aspect-square">
+        {error && !hasCameraPermission && (
+          <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/80">
+            <Alert variant="destructive" className="max-w-md text-left">
+                <AlertTitle>Camera Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+                <Button onClick={startScanner} className="mt-4">Try Again</Button>
+            </Alert>
+          </div>
+        )}
 
-      {isLoading && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 z-20">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="mt-4 text-muted-foreground">Starting camera...</p>
-        </div>
-      )}
+        {isLoading && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 z-20">
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+              <p className="mt-4 text-muted-foreground">Starting camera...</p>
+          </div>
+        )}
+          
+        <div id={readerId} className="w-full h-full" />
         
-      <div id={readerId} className="w-full h-full" />
-      
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
-          <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              accept="image/png, image/jpeg, image/gif"
-              className="hidden"
-          />
-          <Button
-              onClick={() => fileInputRef.current?.click()}
-              variant="secondary"
-              size="lg"
-              className="bg-white/90 hover:bg-white text-primary font-bold"
-              disabled={isLoading}
-          >
-              <FileUp className="mr-2 h-5 w-5" />
-              Upload QR Code
-          </Button>
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
+            <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept="image/png, image/jpeg, image/gif"
+                className="hidden"
+            />
+            <Button
+                onClick={() => fileInputRef.current?.click()}
+                variant="secondary"
+                size="lg"
+                className="bg-white/90 hover:bg-white text-primary font-bold"
+                disabled={isLoading}
+            >
+                <FileUp className="mr-2 h-5 w-5" />
+                Upload QR Code
+            </Button>
+        </div>
       </div>
     </div>
   );
