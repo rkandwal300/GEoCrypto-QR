@@ -14,6 +14,7 @@ import {
   RefreshCw,
   AlertTriangle,
   Camera,
+  Video,
 } from "lucide-react";
 
 import {
@@ -35,8 +36,9 @@ type ScannedDataType = {
 export function QrScanner() {
   const [scannedData, setScannedData] = useState<ScannedDataType | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [showScanner, setShowScanner] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [showScanner, setShowScanner] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<
     boolean | null
   >(null);
@@ -46,87 +48,6 @@ export function QrScanner() {
   const readerId = "qr-code-reader-video";
 
   const { toast } = useToast();
-
-  useEffect(() => {
-    if (!showScanner || hasCameraPermission === false) return;
-
-    if (!scannerRef.current) {
-      scannerRef.current = new Html5Qrcode(readerId, {
-        verbose: false,
-        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-      });
-    }
-    const html5Qrcode = scannerRef.current;
-
-    const startScanner = async () => {
-      setError(null);
-      setScannedData(null);
-      setIsLoading(true);
-
-      try {
-        await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" },
-        });
-        setHasCameraPermission(true);
-
-        const config = {
-          fps: 10,
-          qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-            const size = Math.floor(viewfinderWidth * 0.7);
-            return {
-              width: size,
-              height: size,
-            };
-          },
-          aspectRatio: 1.0,
-          showTorchButtonIfSupported: true,
-          rememberLastUsedCamera: true,
-        };
-
-        const qrCodeSuccessCallback = (decodedText: string) => {
-          if (html5Qrcode.getState() === Html5QrcodeScannerState.SCANNING) {
-            processDecodedText(decodedText);
-          }
-        };
-
-        const qrCodeErrorCallback = (errorMessage: string) => {
-          if (!errorMessage.toLowerCase().includes("not found")) {
-            console.log(`QR Scanner Error: ${errorMessage}`);
-          }
-        };
-
-        await html5Qrcode.start(
-          { facingMode: "environment" },
-          config,
-          qrCodeSuccessCallback,
-          qrCodeErrorCallback
-        );
-      } catch (err: any) {
-        setHasCameraPermission(false);
-        setError(
-          `Camera permission denied. Please allow camera access in your browser settings or use the upload option.`
-        );
-        toast({
-          variant: "destructive",
-          title: "Camera Access Denied",
-          description:
-            "Please enable camera permissions to use the live scanner.",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    startScanner();
-
-    return () => {
-      if (scannerRef.current && scannerRef.current.isScanning) {
-        scannerRef.current
-          .stop()
-          .catch((err) => console.error("Ignoring scanner stop error", err));
-      }
-    };
-  }, [showScanner, hasCameraPermission]);
 
   const processDecodedText = async (decodedText: string) => {
     if (scannerRef.current && scannerRef.current.isScanning) {
@@ -163,11 +84,125 @@ export function QrScanner() {
     }
   };
 
-  const handleRescan = () => {
-    setScannedData(null);
+  const startScanner = async () => {
     setError(null);
+    if (scannedData) setScannedData(null);
     setShowScanner(true);
+    setIsLoading(true);
+
+    if (!scannerRef.current) {
+      scannerRef.current = new Html5Qrcode(readerId, {
+        verbose: false,
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+      });
+    }
+    const html5Qrcode = scannerRef.current;
+
+    // Cleanup function to stop the scanner
+    const cleanup = () => {
+      if (
+        html5Qrcode &&
+        html5Qrcode.getState() === Html5QrcodeScannerState.SCANNING
+      ) {
+        html5Qrcode
+          .stop()
+          .catch((err) => console.error("Ignoring scanner stop error", err));
+      }
+    };
+
+    try {
+      // Check for camera permissions first
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const hasCamera = devices.some(device => device.kind === 'videoinput');
+      if (!hasCamera) {
+        throw new Error("No camera found on this device.");
+      }
+
+      await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+      });
+      setHasCameraPermission(true);
+
+      const config = {
+        fps: 10,
+        qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+          const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+          const size = Math.floor(minEdge * 0.7);
+          return {
+            width: size,
+            height: size,
+          };
+        },
+        aspectRatio: 1.0,
+        showTorchButtonIfSupported: true,
+        rememberLastUsedCamera: true,
+      };
+
+      const qrCodeSuccessCallback = (decodedText: string) => {
+        if (html5Qrcode.getState() === Html5QrcodeScannerState.SCANNING) {
+          processDecodedText(decodedText);
+        }
+      };
+
+      const qrCodeErrorCallback = (errorMessage: string) => {
+        if (!errorMessage.toLowerCase().includes("not found")) {
+          console.log(`QR Scanner Error: ${errorMessage}`);
+        }
+      };
+
+      cleanup(); // Stop any existing scanner before starting a new one
+      await html5Qrcode.start(
+        { facingMode: "environment" },
+        config,
+        qrCodeSuccessCallback,
+        qrCodeErrorCallback
+      );
+    } catch (err: any) {
+      setHasCameraPermission(false);
+      let userMessage = 'Camera permission denied. Please allow camera access in your browser settings or use the upload option.';
+      if(err.message.includes("not found")) {
+        userMessage = "No camera found on this device. You can upload a QR code image instead.";
+      }
+      setError(userMessage);
+      toast({
+        variant: "destructive",
+        title: "Camera Access Issue",
+        description: userMessage,
+      });
+      setShowScanner(false);
+    } finally {
+      setIsLoading(false);
+      setIsInitializing(false);
+    }
   };
+
+  useEffect(() => {
+    // Check for camera permission status on load without prompting
+    const checkPermission = async () => {
+      try {
+        if (navigator.permissions) {
+          const permissionStatus = await navigator.permissions.query({ name: 'camera' as PermissionName });
+          setHasCameraPermission(permissionStatus.state !== 'denied');
+          if (permissionStatus.state === 'denied') {
+            setError('Camera permission denied. Please allow camera access in your browser settings or use the upload option.');
+          }
+        }
+      } catch (e) {
+        console.warn("Could not query camera permission status.", e);
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+    checkPermission();
+
+    return () => {
+      if (scannerRef.current && scannerRef.current.isScanning) {
+        scannerRef.current
+          .stop()
+          .catch((err) => console.error("Ignoring scanner stop error on unmount", err));
+      }
+    };
+  }, []);
 
   const handleFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>
@@ -183,7 +218,6 @@ export function QrScanner() {
       setIsLoading(true);
 
       try {
-        // Ensure scanner is initialized for file scanning
         if (!scannerRef.current) {
           scannerRef.current = new Html5Qrcode(readerId, false);
         }
@@ -199,8 +233,7 @@ export function QrScanner() {
           description: errorMessage,
         });
         setIsLoading(false);
-        // Show the scanner again on file scan error
-        setShowScanner(true);
+        setShowScanner(false);
       }
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -235,7 +268,7 @@ export function QrScanner() {
                 </CardContent>
               </Card>
             </div>
-            <Button onClick={handleRescan} className="w-full" size="lg">
+            <Button onClick={startScanner} className="w-full" size="lg">
               <RefreshCw className="mr-2 h-5 w-5" />
               Scan Another Code
             </Button>
@@ -255,7 +288,7 @@ export function QrScanner() {
       >
         <div id={readerId} className="w-full h-full object-cover"></div>
 
-        {(isLoading || hasCameraPermission === null) && showScanner && (
+        {isLoading && showScanner && (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white bg-black/50 p-4 z-10">
             <Loader2 className="h-10 w-10 animate-spin text-white" />
             <p className="mt-2 text-lg font-medium">Starting Camera...</p>
@@ -263,50 +296,53 @@ export function QrScanner() {
         )}
       </div>
 
-      {!showScanner && !isLoading && (
-        <div className="flex flex-col items-center justify-center text-white">
-          <Camera className="w-24 h-24 mb-4 text-muted-foreground" />
-          <h2 className="text-2xl font-bold mb-2">Scanner Paused</h2>
-          <p className="text-muted-foreground mb-6">
-            Upload an image or start a new scan.
+      {!showScanner && !isInitializing && (
+        <div className="flex flex-col items-center justify-center text-white p-4 text-center">
+          <Video className="w-24 h-24 mb-4 text-muted-foreground" />
+          <h2 className="text-2xl font-bold mb-2">QR Code Scanner</h2>
+          <p className="text-muted-foreground mb-6 max-w-md">
+            Press the button to start the camera or upload an image to scan.
           </p>
         </div>
       )}
 
       <div className="absolute bottom-4 sm:bottom-8 z-20 flex flex-col items-center gap-4 w-full px-4">
-        {hasCameraPermission === false && (
-          <Alert variant="destructive" className="max-w-md">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Camera Access Denied</AlertTitle>
-            <AlertDescription>
-              Please grant camera access in your browser settings to use the
-              scanner.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {error && !scannedData && (
+        {error && (
           <Alert variant="destructive" className="max-w-md">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Scan Error</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
-            <Button onClick={handleRescan} variant="secondary" className="mt-4">
-              <RefreshCw className="mr-2 h-4 w-4" /> Try Again
-            </Button>
           </Alert>
         )}
 
         <div className="flex w-full justify-center max-w-sm gap-4">
-          <Button
-            onClick={handleRescan}
-            variant="secondary"
-            size="lg"
-            className="bg-white/90 hover:bg-white text-primary font-bold flex-1"
-            disabled={isLoading}
-          >
-            <RefreshCw className="mr-2 h-5 w-5" />
-            New Scan
-          </Button>
+          {!showScanner ? (
+            <Button
+              onClick={startScanner}
+              size="lg"
+              className="font-bold flex-1"
+              disabled={isLoading || isInitializing}
+            >
+              {isLoading || isInitializing ? (
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              ) : (
+                <Camera className="mr-2 h-5 w-5" />
+              )}
+              {isLoading ? "Starting..." : "Start Scanner"}
+            </Button>
+          ) : (
+             <Button
+                onClick={() => setShowScanner(false)}
+                variant="destructive"
+                size="lg"
+                className="font-bold flex-1"
+                disabled={isLoading}
+              >
+                <Video className="mr-2 h-5 w-5" />
+                Stop Scanner
+              </Button>
+          )}
+
           <input
             type="file"
             ref={fileInputRef}
@@ -318,8 +354,8 @@ export function QrScanner() {
             onClick={() => fileInputRef.current?.click()}
             variant="secondary"
             size="lg"
-            className="bg-white/90 hover:bg-white text-primary font-bold flex-1"
-            disabled={isLoading}
+            className="bg-white/90 hover:bg-white text-primary font-bold"
+            disabled={isLoading || showScanner}
           >
             <FileUp className="mr-2 h-5 w-5" />
             Upload
@@ -329,3 +365,5 @@ export function QrScanner() {
     </div>
   );
 }
+
+    
