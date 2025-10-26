@@ -36,14 +36,14 @@ const formSchema = z.object({
     .refine(
       (value) => {
         try {
-          // First, try to parse it as-is (valid JSON)
           JSON.parse(value);
           return true;
         } catch (e) {
           try {
             // If that fails, try the object literal conversion trick
-            const jsonString = JSON.stringify(new Function(`return ${value}`)());
-            JSON.parse(jsonString); // Final check to ensure the output is valid JSON
+            const evaluated = new Function(`return ${value}`)();
+            // Final check to ensure the output is valid JSON
+            JSON.parse(JSON.stringify(evaluated));
             return true;
           } catch (err) {
             return false;
@@ -65,7 +65,7 @@ export function QrGenerator() {
       jsonData: `{\n  id:"123",\n  name:"rahul Kandwal",\n  domain:"https://xyz.com",\n  route:"sign_payload",\n  method:"POST"\n}`,
     },
   });
-  
+
   const handleDataChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     form.setValue('jsonData', e.target.value, { shouldValidate: true });
   };
@@ -75,12 +75,10 @@ export function QrGenerator() {
     try {
       let json;
       try {
-        // Attempt to parse as-is
         json = JSON.parse(values.jsonData);
       } catch (e) {
-        // If it fails, convert from object literal
-        const jsonString = JSON.stringify(new Function(`return ${values.jsonData}`)());
-        json = JSON.parse(jsonString);
+        const evaluated = new Function(`return ${values.jsonData}`)();
+        json = JSON.parse(JSON.stringify(evaluated));
       }
 
       const encrypted = encryptData(json);
@@ -119,52 +117,54 @@ export function QrGenerator() {
     }
   };
 
-  const handleShare = async () => {
-    const canvas = qrCodeRef.current?.querySelector<HTMLCanvasElement>("canvas");
-    if (!canvas) {
-      toast({
-        variant: "destructive",
-        title: "Share failed",
-        description: "QR code not found.",
-      });
-      return;
-    }
-
-    if (!navigator.share) {
-      toast({
-        variant: "destructive",
-        title: "Share not available",
-        description: "Web Share API is not supported on this browser.",
-      });
-      return;
-    }
-
+  const shareQrCode = async (qrFile: File) => {
     try {
-      const blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob(resolve, "image/png")
-      );
-
-      if (!blob) {
-        throw new Error("Failed to create blob from canvas.");
-      }
-
-      const file = new File([blob], "geocrypt-qrcode.png", { type: "image/png" });
-      
       await navigator.share({
-        title: "GeoCrypt QR Code",
         text: "Scan this secure QR code.",
-        files: [file],
+        files: [qrFile],
       });
     } catch (error: any) {
-      // Avoid showing an error if the user cancels the share dialog
-      if (error.name !== 'AbortError') {
+      if (error.name !== 'AbortError' && error.name !== 'PermissionDeniedError') {
         toast({
           variant: "destructive",
           title: "Share failed",
           description: error.message || "Could not share the QR code.",
         });
+      } else if (error.name === 'PermissionDeniedError') {
+          toast({
+              variant: "destructive",
+              title: "Share Permission Denied",
+              description: "Permission to share was denied. Please try again from a user-activated event.",
+          });
       }
     }
+  };
+
+  const handleShareClick = () => {
+    const canvas = qrCodeRef.current?.querySelector<HTMLCanvasElement>('canvas');
+    if (!canvas || !navigator.share) {
+      toast({
+        variant: "destructive",
+        title: "Share not available",
+        description: !canvas 
+          ? "QR code not found." 
+          : "Web Share API is not supported on this browser.",
+      });
+      return;
+    }
+
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        toast({
+          variant: "destructive",
+          title: "Share failed",
+          description: "Failed to create image from QR code.",
+        });
+        return;
+      }
+      const file = new File([blob], 'geocrypt-qrcode.png', { type: 'image/png' });
+      shareQrCode(file);
+    }, 'image/png');
   };
 
 
@@ -224,7 +224,7 @@ export function QrGenerator() {
               Download PNG
             </Button>
             {navigator.share && (
-              <Button onClick={handleShare}>
+              <Button onClick={handleShareClick}>
                 <Share2 className="mr-2 h-4 w-4" />
                 Share
               </Button>
