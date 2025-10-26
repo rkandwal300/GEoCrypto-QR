@@ -1,0 +1,27 @@
+{
+  "name": "GeoCrypt QR",
+  "short_name": "GeoCryptQR",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#E5F6FF",
+  "theme_color": "#3AB0FF",
+  "description": "Securely generate and scan QR codes with geolocation.",
+  "icons": [
+    {
+      "src": "/icons/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
