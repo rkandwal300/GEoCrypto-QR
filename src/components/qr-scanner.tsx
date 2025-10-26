@@ -2,8 +2,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Html5Qrcode, Html5QrcodeScannerState } from "html5-qrcode";
-import { Camera, ScanLine, MapPin, AlertTriangle, Loader2, FileUp, KeyRound, Shutter } from "lucide-react";
+import { Html5Qrcode } from "html5-qrcode";
+import { Camera, ScanLine, MapPin, AlertTriangle, Loader2, FileUp, KeyRound } from "lucide-react";
 
 import {
   Card,
@@ -80,6 +80,7 @@ export function QrScanner() {
   useEffect(() => {
     // Initialize scanner instance once.
     if (!scannerRef.current) {
+      // The `verbose: false` option is passed to prevent logging to the console.
       scannerRef.current = new Html5Qrcode(readerId, false);
     }
     startScanner();
@@ -244,7 +245,7 @@ export function QrScanner() {
               {isScanning && hasCameraPermission && (
                   <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
                     <Button onClick={handleCapture} size="icon" className="rounded-full w-20 h-20 bg-white/80 hover:bg-white border-4 border-primary shadow-lg">
-                        <Shutter className="w-10 h-10 text-primary" />
+                        <Camera className="w-10 h-10 text-primary" />
                     </Button>
                   </div>
               )}
