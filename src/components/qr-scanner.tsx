@@ -15,7 +15,6 @@ import {
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -333,19 +332,13 @@ export function QrScanner() {
       {/* Overlay with cutout */}
       <div className="absolute inset-0 z-10 flex items-center justify-center">
         <div className="relative w-[70vw] max-w-[400px] aspect-square">
-          {/* Blurred Panels */}
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
-
-          {/* Un-blurred Center Box */}
+          {/* This style creates the "cutout" effect */}
           <div
-            className="absolute top-1/2 left-1/2 w-full h-full"
+            className="w-full h-full rounded-3xl"
             style={{
-              transform: 'translate(-50%, -50%)',
-              boxShadow: '0 0 0 9999px rgba(0,0,0,0.5)',
+              boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.5)',
             }}
           >
-             {/* Border for the cutout */}
-             <div className="w-full h-full border-4 border-white/80 rounded-3xl"></div>
           </div>
         </div>
       </div>
