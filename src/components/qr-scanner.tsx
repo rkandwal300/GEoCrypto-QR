@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Html5Qrcode } from "html5-qrcode";
-import { Camera, ScanLine, MapPin, AlertTriangle, Loader2, FileUp, KeyRound, RefreshCw } from "lucide-react";
+import { Camera, ScanLine, MapPin, AlertTriangle, Loader2, FileUp, KeyRound, RefreshCw, Video } from "lucide-react";
 
 import {
   Card,
@@ -43,6 +43,17 @@ export function QrScanner() {
   const { toast } = useToast();
   const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
+  useEffect(() => {
+    // Initialize scanner on mount but don't start camera
+    if (!scannerRef.current) {
+        scannerRef.current = new Html5Qrcode(readerId, false);
+    }
+
+    return () => {
+      stopCamera();
+    };
+  }, []);
+
   const stopCamera = () => {
     if (scannerRef.current && scannerRef.current.isScanning) {
         scannerRef.current.stop().catch(err => console.error("Ignoring scanner stop error", err));
@@ -60,17 +71,16 @@ export function QrScanner() {
     setScannedData(null);
   
     try {
-      if (!scannerRef.current) {
-        scannerRef.current = new Html5Qrcode(readerId, false);
-      }
-      
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { facingMode: "environment" } 
       });
       setHasCameraPermission(true);
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play().catch(err => console.error("Video play interrupted", err));
+        videoRef.current.play().catch(err => {
+            console.error("Video play interrupted, likely by a new load request.", err)
+            // This error is often non-fatal on mobile if muted and playsinline are set.
+        });
       }
       setIsScanning(true);
     } catch (err: any) {
@@ -79,14 +89,6 @@ export function QrScanner() {
       setIsScanning(false);
     }
   };
-
-  useEffect(() => {
-    startScanner();
-    return () => {
-      stopCamera();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const processDecodedText = async (decodedText: string) => {
     setIsLoading(true);
@@ -143,17 +145,14 @@ export function QrScanner() {
   const handleRescan = () => {
     setError(null);
     setScannedData(null);
-    if(hasCameraPermission !== false){
-        startScanner();
-    }
+    setIsScanning(false); // Reset to show the start button
   };
 
   const handleCapture = async () => {
     if (!videoRef.current || !canvasRef.current || !isScanning) return;
     
     setIsLoading(true);
-    stopCamera(); 
-
+    
     const video = videoRef.current;
     const canvas = canvasRef.current;
     canvas.width = video.videoWidth;
@@ -162,6 +161,7 @@ export function QrScanner() {
 
     if (context) {
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        stopCamera(); // Stop camera after capture
         
         try {
             const imageDataUrl = canvas.toDataURL('image/png');
@@ -264,29 +264,36 @@ export function QrScanner() {
       </CardHeader>
       <CardContent className="space-y-6">
         <div style={{ display: scannedData || isLoading ? 'none' : 'block' }}>
-          <div className="relative aspect-square w-full max-w-md mx-auto rounded-lg overflow-hidden border-4 border-dashed">
+          <div className="relative aspect-square w-full max-w-md mx-auto rounded-lg overflow-hidden border-4 border-dashed bg-muted">
              <video ref={videoRef} id={readerId} className="w-full h-full object-cover" playsInline muted />
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                  <div className="w-2/3 h-2/3 border-4 border-white/50 rounded-2xl shadow-lg" />
               </div>
+
+              {!isScanning && (
+                <div className="absolute inset-0 bg-background/90 flex flex-col items-center justify-center p-4 text-center">
+                   {hasCameraPermission === false ? (
+                     <Alert variant="destructive">
+                       <AlertTriangle className="h-4 w-4" />
+                       <AlertTitle>Camera Access Denied</AlertTitle>
+                       <AlertDescription>
+                         Please grant camera access in your browser settings to use the scanner.
+                       </AlertDescription>
+                     </Alert>
+                   ) : (
+                     <Button onClick={startScanner} size="lg">
+                       <Video className="mr-2 h-5 w-5" />
+                       Start Scan
+                     </Button>
+                   )}
+                </div>
+              )}
               
               {isScanning && hasCameraPermission && (
                   <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
                     <Button onClick={handleCapture} size="icon" className="rounded-full w-20 h-20 bg-white/80 hover:bg-white border-4 border-primary shadow-lg transition-transform hover:scale-110">
                         <Camera className="w-10 h-10 text-primary" />
                     </Button>
-                  </div>
-              )}
-
-              {hasCameraPermission === false && !isLoading && (
-                  <div className="absolute inset-0 bg-background/90 flex flex-col items-center justify-center p-4 text-center">
-                      <Alert variant="destructive">
-                          <AlertTriangle className="h-4 w-4" />
-                          <AlertTitle>Camera Access Required</AlertTitle>
-                          <AlertDescription>
-                              Camera permission is not available. Grant access or use the file upload option.
-                          </AlertDescription>
-                      </Alert>
                   </div>
               )}
           </div>
