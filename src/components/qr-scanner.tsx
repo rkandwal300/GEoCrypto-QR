@@ -160,11 +160,10 @@ export function QrScanner() {
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
             stopCamera();
             try {
-                if (!scannerRef.current) {
-                    scannerRef.current = new Html5Qrcode(readerId, false);
-                }
+                // Re-initialize for file scanning
+                const fileScanner = new Html5Qrcode(readerId, false);
                 const imageDataUrl = canvas.toDataURL('image/png');
-                const decodedText = await scannerRef.current.scanFile(dataURLtoFile(imageDataUrl, 'capture.png'), false);
+                const decodedText = await fileScanner.scanFile(dataURLtoFile(imageDataUrl, 'capture.png'), false);
                 await processDecodedText(decodedText);
             } catch (err) {
                  const errorMessage = "Could not decode QR code from the captured image. Please try again.";
@@ -181,13 +180,20 @@ export function QrScanner() {
     }
   }
 
-  function dataURLtoFile(dataurl: string, filename: string) {
-    let arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)?.[1],
-        bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
-    while(n--){
-        u8arr[n] = bstr.charCodeAt(n);
+  function dataURLtoFile(dataurl: string, filename: string): File {
+    const arr = dataurl.split(',');
+    const mimeMatch = arr[0].match(/:(.*?);/);
+    if (!mimeMatch) {
+      throw new Error("Invalid data URL");
     }
-    return new File([u8arr], filename, {type:mime});
+    const mime = mimeMatch[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new File([u8arr], filename, { type: mime });
   }
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -198,12 +204,9 @@ export function QrScanner() {
       setIsLoading(true);
       stopCamera();
 
-      if (!scannerRef.current) {
-        scannerRef.current = new Html5Qrcode(readerId, false);
-      }
-      
       try {
-        const decodedText = await scannerRef.current.scanFile(file, false);
+        const fileScanner = new Html5Qrcode(readerId, false);
+        const decodedText = await fileScanner.scanFile(file, false);
         await processDecodedText(decodedText);
       } catch (err: any) {
         const errorMessage = "Could not scan the QR code from the image. Please try a different file.";
