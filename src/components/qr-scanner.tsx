@@ -18,7 +18,6 @@ import {
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -55,6 +54,7 @@ export function QrScanner() {
         .catch((err) => console.log("Error stopping scanner", err));
     }
     setIsLoading(true);
+    setError(null);
 
     try {
       const decrypted = decryptData(decodedText);
@@ -125,7 +125,8 @@ export function QrScanner() {
     const config = {
       fps: 10,
       qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-        const qrboxSize = Math.floor(viewfinderWidth * 0.7);
+        const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+        const qrboxSize = Math.floor(minEdge * 0.7);
         return {
           width: qrboxSize,
           height: qrboxSize,
@@ -183,13 +184,15 @@ export function QrScanner() {
   };
 
   useEffect(() => {
-    setTimeout(() => {
-        if (typeof window !== "undefined") {
-            startScanner();
-        }
+    // A small delay ensures the reader element is in the DOM.
+    const timeoutId = setTimeout(() => {
+      if (typeof window !== "undefined") {
+        startScanner();
+      }
     }, 100);
 
     return () => {
+      clearTimeout(timeoutId);
       if (scannerRef.current?.isScanning) {
         scannerRef.current.stop().catch(err => {
           console.error("Failed to stop the scanner on cleanup.", err);
@@ -211,7 +214,7 @@ export function QrScanner() {
       setIsLoading(true);
 
       try {
-        const tempScanner = new Html5Qrcode(readerId, false);
+        const tempScanner = new Html5Qrcode(readerId, { verbose: false });
         const decodedText = await tempScanner.scanFile(file, false);
         processDecodedText(decodedText);
       } catch (err: any) {
@@ -292,7 +295,7 @@ export function QrScanner() {
 
   return (
     <div className="fixed inset-0 bg-black flex items-center justify-center">
-      <div className="w-full h-full max-w-full max-h-full aspect-square">
+      <div className="w-full h-full">
         {error && !hasCameraPermission && (
           <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/80">
             <Alert variant="destructive" className="max-w-md text-left">
