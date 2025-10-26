@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { decryptData } from "@/lib/crypto";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { cn } from "@/lib/utils";
 
 type ScannedDataType = {
   data: any;
@@ -38,7 +39,7 @@ type ScannedDataType = {
 export function QrScanner() {
   const [scannedData, setScannedData] = useState<ScannedDataType | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [hasCameraPermission, setHasCameraPermission] = useState<
     boolean | null
   >(null);
@@ -62,7 +63,10 @@ export function QrScanner() {
   };
 
   useEffect(() => {
-    scannerRef.current = new Html5Qrcode(readerId, false);
+    if (!scannerRef.current) {
+        scannerRef.current = new Html5Qrcode(readerId, false);
+    }
+    const html5Qrcode = scannerRef.current;
 
     const startScanner = async () => {
       setError(null);
@@ -75,24 +79,22 @@ export function QrScanner() {
         });
         setHasCameraPermission(true);
 
-        if (!scannerRef.current) return;
-
-        scannerRef.current.start(
+        html5Qrcode.start(
           { facingMode: "environment" },
           {
             fps: 10,
             qrbox: (viewfinderWidth, viewfinderHeight) => {
-              const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-              const qrboxSize = Math.floor(minEdge * 0.7);
-              return {
-                width: qrboxSize,
-                height: qrboxSize,
-              };
-            },
+                const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                const qrboxSize = Math.floor(minEdge * 0.7);
+                return {
+                  width: qrboxSize,
+                  height: qrboxSize,
+                };
+              },
             disableFlip: false,
           },
           (decodedText) => {
-            if (isLoading) return;
+            if (isLoading) return; // Prevent multiple scans
             processDecodedText(decodedText);
           },
           (errorMessage) => {
@@ -110,6 +112,11 @@ export function QrScanner() {
         setError(
           `Camera permission denied. Please allow camera access in your browser settings or use the upload option.`
         );
+        toast({
+            variant: "destructive",
+            title: "Camera Access Denied",
+            description: "Please enable camera permissions to use the live scanner."
+        })
         setIsLoading(false);
       }
     };
