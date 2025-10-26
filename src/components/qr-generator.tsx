@@ -57,6 +57,19 @@ export function QrGenerator() {
       jsonData: "",
     },
   });
+  
+  const handleDataChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    try {
+      // This is a trick to convert a JS object literal string to a JSON string.
+      // We are NOT using eval() for security reasons.
+      const jsonString = JSON.stringify(new Function(`return ${value}`)());
+      form.setValue('jsonData', jsonString, { shouldValidate: true });
+    } catch (err) {
+      form.setValue('jsonData', value, { shouldValidate: true });
+    }
+  };
+
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     try {
@@ -155,6 +168,7 @@ export function QrGenerator() {
                       placeholder={'{\n  "id": "12345",\n  "sensitive_data": "user@example.com"\n}'}
                       className="min-h-[150px] font-code text-sm"
                       {...field}
+                      onChange={handleDataChange}
                     />
                   </FormControl>
                   <FormDescription>
