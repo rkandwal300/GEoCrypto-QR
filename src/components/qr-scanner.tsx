@@ -293,47 +293,58 @@ export function QrScanner() {
   }
 
   return (
-    <div className="fixed inset-0 bg-black flex items-center justify-center">
-      <div className="w-full h-full relative">
-        {error && !hasCameraPermission && (
-          <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/80">
-            <Alert variant="destructive" className="max-w-md text-left">
-                <AlertTitle>Camera Error</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-                <Button onClick={startScanner} className="mt-4">Try Again</Button>
-            </Alert>
-          </div>
-        )}
+    <>
+      <style jsx global>{`
+        #${readerId} video {
+          width: 100% !important;
+          height: 100% !important;
+          object-fit: cover !important;
+        }
+      `}</style>
+      <div className="fixed inset-0 bg-black flex items-center justify-center">
+        <div className="w-full h-full relative">
+          {error && !hasCameraPermission && (
+            <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/80">
+              <Alert variant="destructive" className="max-w-md text-left">
+                  <AlertTitle>Camera Error</AlertTitle>
+                  <AlertDescription>{error}</AlertDescription>
+                  <Button onClick={startScanner} className="mt-4">Try Again</Button>
+              </Alert>
+            </div>
+          )}
 
-        {isLoading && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 z-20">
-              <Loader2 className="h-12 w-12 animate-spin text-primary" />
-              <p className="mt-4 text-muted-foreground">Starting camera...</p>
-          </div>
-        )}
+          {isLoading && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 z-20">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <p className="mt-4 text-muted-foreground">Starting camera...</p>
+            </div>
+          )}
+            
+          <div id={readerId} className="w-full h-full" />
           
-        <div id={readerId} className="w-full h-full" />
-        
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
-            <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                accept="image/png, image/jpeg, image/gif"
-                className="hidden"
-            />
-            <Button
-                onClick={() => fileInputRef.current?.click()}
-                variant="secondary"
-                size="lg"
-                className="bg-white/90 hover:bg-white text-primary font-bold"
-                disabled={isLoading}
-            >
-                <FileUp className="mr-2 h-5 w-5" />
-                Upload QR Code
-            </Button>
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 ">
+              <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  accept="image/png, image/jpeg, image/gif"
+                  className="hidden"
+              />
+              <Button
+                  onClick={() => fileInputRef.current?.click()}
+                  variant="secondary"
+                  size="lg"
+                  className="bg-white/90 hover:bg-white text-primary font-bold"
+                  disabled={isLoading}
+              >
+                  <FileUp className="mr-2 h-5 w-5" />
+                  Upload QR Code
+              </Button>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
+
+    
