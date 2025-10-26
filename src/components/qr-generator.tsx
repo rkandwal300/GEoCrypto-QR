@@ -31,7 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 import { encryptData } from "@/lib/crypto";
 
 const formSchema = z.object({
-  jsonData: z.string().min(1, "Data cannot be empty."),
+  jsonData: z.string().min(1, "Input data cannot be empty."),
 });
 
 export function QrGenerator() {
@@ -64,7 +64,7 @@ export function QrGenerator() {
       toast({
         title: "Success!",
         description: "Your secure QR code has been generated.",
-        className: "bg-green-100 dark:bg-green-900",
+        className: "bg-accent text-accent-foreground",
       });
     } catch (error) {
       const errorMessage =
@@ -80,7 +80,7 @@ export function QrGenerator() {
   const handleDownload = () => {
     const originalCanvas =
       qrCodeRef.current?.querySelector<HTMLCanvasElement>("canvas");
-    if (!originalCanvas) {
+    if (!originalCanvas || !qrValue) {
       toast({
         variant: "destructive",
         title: "Download failed",
@@ -89,11 +89,13 @@ export function QrGenerator() {
       return;
     }
 
+    const downloadSize = 1024;
+    const padding = downloadSize * 0.1; 
+    const innerSize = downloadSize - padding * 2;
+
     const downloadCanvas = document.createElement("canvas");
-    const scale = 4;
-    const size = 256;
-    downloadCanvas.width = size * scale;
-    downloadCanvas.height = size * scale;
+    downloadCanvas.width = downloadSize;
+    downloadCanvas.height = downloadSize;
     const ctx = downloadCanvas.getContext("2d");
 
     if (!ctx) {
@@ -105,31 +107,17 @@ export function QrGenerator() {
       return;
     }
 
-    // Create a new high-res QR code on the temporary canvas
-    const tempQrContainer = document.createElement("div");
-    document.body.appendChild(tempQrContainer);
-    const highResQrCode = new (QRCode as any)({
-        value: qrValue,
-        size: size * scale,
-        level: "H",
-        bgColor: "#FFFFFF",
-        fgColor: "#000000",
-        renderAs: "canvas",
-    });
-    const highResCanvas = highResQrCode._canvas;
-
-
+    // Fill background with white
     ctx.fillStyle = "#FFFFFF";
-    ctx.fillRect(0, 0, downloadCanvas.width, downloadCanvas.height);
+    ctx.fillRect(0, 0, downloadSize, downloadSize);
     
-    // Draw the QR code centered
-    const padding = downloadCanvas.width * 0.1;
-    const qrSize = downloadCanvas.width - padding * 2;
-    ctx.drawImage(highResCanvas, padding, padding, qrSize, qrSize);
-    
-    document.body.removeChild(tempQrContainer);
+    // Disable image smoothing to keep QR code sharp when scaling
+    ctx.imageSmoothingEnabled = false;
 
+    // Draw the original QR code canvas onto the new canvas, centered with padding
+    ctx.drawImage(originalCanvas, padding, padding, innerSize, innerSize);
 
+    // Trigger download
     const link = document.createElement("a");
     link.href = downloadCanvas.toDataURL("image/png");
     link.download = "geocrypt-qrcode.png";
@@ -233,7 +221,7 @@ export function QrGenerator() {
                     </FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder={'{ id:"123", name:"rahul Kandwal" }'}
+                        placeholder='Enter any text or data you want to encrypt...'
                         className="min-h-[200px] font-code text-base bg-muted/50 focus-visible:ring-primary focus-visible:ring-2"
                         {...field}
                         onChange={handleDataChange}
@@ -267,6 +255,7 @@ export function QrGenerator() {
                 level="H"
                 bgColor="#ffffff"
                 fgColor="#000000"
+                renderAs="canvas"
               />
             </div>
             <div className="flex flex-wrap justify-center gap-4">
