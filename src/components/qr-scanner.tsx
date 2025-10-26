@@ -24,23 +24,24 @@ export function QrScanner() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
   const readerId = "qr-code-reader";
 
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!scannerRef.current) {
-      const scanner = new Html5Qrcode(readerId, false);
-      scannerRef.current = scanner;
-    }
-
     const startScanner = async () => {
       setError(null);
       setScannedData(null);
+
+      // Initialize scanner if it doesn't exist
+      if (!scannerRef.current) {
+        scannerRef.current = new Html5Qrcode(readerId, false);
+      }
+
       if (scannerRef.current?.getState() === Html5QrcodeScannerState.SCANNING) {
         return;
       }
+      
       try {
         const cameras = await Html5Qrcode.getCameras();
         if (cameras && cameras.length) {
@@ -82,7 +83,11 @@ export function QrScanner() {
   const processDecodedText = async (decodedText: string) => {
     setIsLoading(true);
     if (scannerRef.current?.isScanning) {
-      await scannerRef.current.pause(true);
+        try {
+            await scannerRef.current.pause(true);
+        } catch(e) {
+            // Can ignore this, might be paused already
+        }
     }
 
     try {
@@ -142,31 +147,44 @@ export function QrScanner() {
     setError(null);
     setScannedData(null);
     setIsLoading(false);
-    if (scannerRef.current && hasCameraPermission && !scannerRef.current.isScanning) {
-      try {
-        await scannerRef.current.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
-          onScanSuccess,
-          () => {}
-        );
-      } catch (err: any) {
-        setError(`Failed to restart scanner: ${err.message}.`);
+    if (scannerRef.current && hasCameraPermission) {
+      if(scannerRef.current.isScanning) {
+          scannerRef.current.resume();
+      } else {
+        try {
+            await scannerRef.current.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: (viewfinderWidth, viewfinderHeight) => {
+                    const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                    const qrboxSize = Math.floor(minEdge * 0.7);
+                    return { width: qrboxSize, height: qrboxSize };
+                  }, aspectRatio: 1.0 },
+                onScanSuccess,
+                () => {}
+            );
+        } catch (err: any) {
+            setError(`Failed to restart scanner: ${err.message}.`);
+        }
       }
-    } else if (scannerRef.current && scannerRef.current.isScanning) {
-      scannerRef.current.resume();
     }
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && scannerRef.current) {
+    if (file) {
       setScannedData(null);
       setError(null);
       setIsLoading(true);
-      if (scannerRef.current?.isScanning) {
-        await scannerRef.current.clear();
+
+      // Ensure scanner exists
+      if (!scannerRef.current) {
+        scannerRef.current = new Html5Qrcode(readerId, false);
       }
+      
+      if (scannerRef.current?.isScanning) {
+        await scannerRef.current.stop();
+      }
+
       try {
         const decodedText = await scannerRef.current.scanFile(file, false);
         onScanSuccess(decodedText);
@@ -181,6 +199,7 @@ export function QrScanner() {
       } finally {
         setIsLoading(false);
       }
+      // Reset file input to allow re-uploading the same file
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -256,7 +275,7 @@ export function QrScanner() {
               accept="image/png, image/jpeg, image/gif"
               className="hidden"
             />
-            <Button onClick={() => fileInput.current?.click()} variant="outline" disabled={isLoading}>
+            <Button onClick={() => fileInputRef.current?.click()} variant="outline" disabled={isLoading}>
               <FileUp className="mr-2 h-4 w-4" />
               Upload QR Image
             </Button>
@@ -266,5 +285,3 @@ export function QrScanner() {
     </Card>
   );
 }
-
-  
