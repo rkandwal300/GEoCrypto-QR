@@ -128,14 +128,7 @@ export function QrScanner() {
 
     try {
       const decrypted = decryptData(decodedText);
-      if (
-        !decrypted ||
-        typeof decrypted !== "object" ||
-        !decrypted.hasOwnProperty("data")
-      ) {
-        throw new Error("Invalid QR code format after decryption.");
-      }
-
+      
       const location = await new Promise<GeolocationCoordinates>(
         (resolve, reject) => {
           if (!navigator.geolocation) {
@@ -151,7 +144,7 @@ export function QrScanner() {
       );
 
       const mergedData = {
-        ...(decrypted as object),
+        data: decrypted,
         scanDetails: {
           scannedAt: new Date().toISOString(),
           location: {
@@ -330,20 +323,17 @@ export function QrScanner() {
       <div id={readerId} className="absolute inset-0 w-full h-full"></div>
       
       {/* Overlay with cutout */}
-      <div className="absolute inset-0 z-10 flex items-center justify-center">
-        <div className="relative w-[70vw] max-w-[400px] aspect-square">
-          {/* This style creates the "cutout" effect */}
-          <div
-            className="w-full h-full rounded-3xl"
-            style={{
-              boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.5)',
-            }}
-          >
-          </div>
+      <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+        <div
+          className="w-[70vw] max-w-[400px] aspect-square"
+          style={{
+            boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.5)',
+          }}
+        >
         </div>
       </div>
       
-      <div className="absolute bottom-10 z-20 flex flex-col items-center gap-4">
+      <div className="absolute bottom-10 z-20 flex flex-col items-center gap-4 w-full px-4">
         {(isLoading && hasCameraPermission !== false) && (
             <div className="flex flex-col items-center justify-center text-center text-white">
                 <Loader2 className="h-10 w-10 animate-spin text-white" />
@@ -361,7 +351,7 @@ export function QrScanner() {
              </Alert>
         )}
 
-         {error && (
+         {error && !scannedData && (
           <Alert variant="destructive" className="max-w-md">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Scan Error</AlertTitle>
@@ -383,8 +373,8 @@ export function QrScanner() {
             onClick={() => fileInputRef.current?.click()} 
             variant="secondary" 
             size="lg"
-            className="bg-white/90 hover:bg-white text-primary font-bold"
-            disabled={isLoading}
+            className="bg-white/90 hover:bg-white text-primary font-bold w-full max-w-sm"
+            disabled={isLoading || (!!error && !scannedData)}
         >
           <FileUp className="mr-2 h-5 w-5" />
           Upload QR Image
