@@ -121,36 +121,52 @@ export function QrGenerator() {
 
   const handleShare = async () => {
     const canvas = qrCodeRef.current?.querySelector<HTMLCanvasElement>("canvas");
-    if (canvas && navigator.share) {
-      canvas.toBlob(async (blob) => {
-        if (blob) {
-          try {
-            const file = new File([blob], "geocrypt-qrcode.png", {
-              type: "image/png",
-            });
-            await navigator.share({
-              title: "GeoCrypt QR Code",
-              text: "Scan this secure QR code.",
-              files: [file],
-            });
-          } catch (error) {
-            toast({
-              variant: "destructive",
-              title: "Share failed",
-              description: "Could not share the QR code.",
-            });
-          }
-        }
-      }, "image/png");
-    } else {
+    if (!canvas) {
+      toast({
+        variant: "destructive",
+        title: "Share failed",
+        description: "QR code not found.",
+      });
+      return;
+    }
+
+    if (!navigator.share) {
       toast({
         variant: "destructive",
         title: "Share not available",
-        description:
-          "Web Share API is not supported on this browser or no QR code is generated.",
+        description: "Web Share API is not supported on this browser.",
       });
+      return;
+    }
+
+    try {
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/png")
+      );
+
+      if (!blob) {
+        throw new Error("Failed to create blob from canvas.");
+      }
+
+      const file = new File([blob], "geocrypt-qrcode.png", { type: "image/png" });
+      
+      await navigator.share({
+        title: "GeoCrypt QR Code",
+        text: "Scan this secure QR code.",
+        files: [file],
+      });
+    } catch (error: any) {
+      // Avoid showing an error if the user cancels the share dialog
+      if (error.name !== 'AbortError') {
+        toast({
+          variant: "destructive",
+          title: "Share failed",
+          description: error.message || "Could not share the QR code.",
+        });
+      }
     }
   };
+
 
   return (
     <Card className="w-full max-w-2xl shadow-2xl shadow-primary/10">
