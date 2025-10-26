@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef } from "react";
@@ -30,28 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 import { encryptData } from "@/lib/crypto";
 
 const formSchema = z.object({
-  jsonData: z
-    .string()
-    .min(1, "Data cannot be empty.")
-    .refine(
-      (value) => {
-        try {
-          JSON.parse(value);
-          return true;
-        } catch (e) {
-          try {
-            // If that fails, try the object literal conversion trick
-            const evaluated = new Function(`return ${value}`)();
-            // Final check to ensure the output is valid JSON
-            JSON.parse(JSON.stringify(evaluated));
-            return true;
-          } catch (err) {
-            return false;
-          }
-        }
-      },
-      { message: "Invalid JSON or JavaScript object format." }
-    ),
+  jsonData: z.string().min(1, "Data cannot be empty."),
 });
 
 export function QrGenerator() {
@@ -67,24 +47,19 @@ export function QrGenerator() {
   });
 
   const handleDataChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    form.setValue('jsonData', e.target.value, { shouldValidate: true });
-    if(qrValue) {
+    form.setValue("jsonData", e.target.value, { shouldValidate: true });
+    if (qrValue) {
       setQrValue(null);
     }
   };
 
-
   function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      let json;
-      try {
-        json = JSON.parse(values.jsonData);
-      } catch (e) {
-        const evaluated = new Function(`return ${values.jsonData}`)();
-        json = JSON.parse(JSON.stringify(evaluated));
-      }
+      const dataToEncrypt = {
+        data: values.jsonData,
+      };
 
-      const encrypted = encryptData(json);
+      const encrypted = encryptData(dataToEncrypt);
       setQrValue(encrypted);
       toast({
         title: "Success!",
@@ -103,52 +78,68 @@ export function QrGenerator() {
   }
 
   const handleDownload = () => {
-    const originalCanvas = qrCodeRef.current?.querySelector<HTMLCanvasElement>('canvas');
+    const originalCanvas =
+      qrCodeRef.current?.querySelector<HTMLCanvasElement>("canvas");
     if (!originalCanvas) {
       toast({
-        variant: 'destructive',
-        title: 'Download failed',
-        description: 'Could not find the QR code canvas.',
+        variant: "destructive",
+        title: "Download failed",
+        description: "Could not find the QR code canvas.",
       });
       return;
     }
 
-    // Create a new, larger canvas for a high-quality download
-    const downloadCanvas = document.createElement('canvas');
-    const scale = 4; // Upscale for better quality
-    const size = originalCanvas.width * scale;
-    const padding = size * 0.1; // 10% padding
-    downloadCanvas.width = size + padding * 2;
-    downloadCanvas.height = size + padding * 2;
-    const ctx = downloadCanvas.getContext('2d');
+    const downloadCanvas = document.createElement("canvas");
+    const scale = 4;
+    const size = 256;
+    downloadCanvas.width = size * scale;
+    downloadCanvas.height = size * scale;
+    const ctx = downloadCanvas.getContext("2d");
 
     if (!ctx) {
-        toast({
-            variant: 'destructive',
-            title: 'Download failed',
-            description: 'Could not create a canvas for downloading.',
-        });
-        return;
+      toast({
+        variant: "destructive",
+        title: "Download failed",
+        description: "Could not create a canvas for downloading.",
+      });
+      return;
     }
 
-    // Fill background with white
-    ctx.fillStyle = '#FFFFFF';
+    // Create a new high-res QR code on the temporary canvas
+    const tempQrContainer = document.createElement("div");
+    document.body.appendChild(tempQrContainer);
+    const highResQrCode = new (QRCode as any)({
+        value: qrValue,
+        size: size * scale,
+        level: "H",
+        bgColor: "#FFFFFF",
+        fgColor: "#000000",
+        renderAs: "canvas",
+    });
+    const highResCanvas = highResQrCode._canvas;
+
+
+    ctx.fillStyle = "#FFFFFF";
     ctx.fillRect(0, 0, downloadCanvas.width, downloadCanvas.height);
     
-    // Draw the original QR code canvas onto the new canvas, centered with padding
-    ctx.drawImage(originalCanvas, padding, padding, size, size);
+    // Draw the QR code centered
+    const padding = downloadCanvas.width * 0.1;
+    const qrSize = downloadCanvas.width - padding * 2;
+    ctx.drawImage(highResCanvas, padding, padding, qrSize, qrSize);
+    
+    document.body.removeChild(tempQrContainer);
 
-    // Trigger download
-    const link = document.createElement('a');
-    link.href = downloadCanvas.toDataURL('image/png');
-    link.download = 'geocrypt-qrcode.png';
+
+    const link = document.createElement("a");
+    link.href = downloadCanvas.toDataURL("image/png");
+    link.download = "geocrypt-qrcode.png";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 
     toast({
-        title: 'Download started',
-        description: 'Your QR code is being downloaded.',
+      title: "Download started",
+      description: "Your QR code is being downloaded.",
     });
   };
 
@@ -158,56 +149,62 @@ export function QrGenerator() {
         files: [qrFile],
       });
     } catch (error: any) {
-      if (error.name !== 'AbortError' && error.name !== 'PermissionDeniedError') {
+      if (
+        error.name !== "AbortError" &&
+        error.name !== "PermissionDeniedError"
+      ) {
         toast({
           variant: "destructive",
           title: "Share failed",
           description: error.message || "Could not share the QR code.",
         });
-      } else if (error.name === 'PermissionDeniedError') {
-          toast({
-              variant: "destructive",
-              title: "Share Permission Denied",
-              description: "Permission to share was denied by the user.",
-          });
+      } else if (error.name === "PermissionDeniedError") {
+        toast({
+          variant: "destructive",
+          title: "Share Permission Denied",
+          description: "Permission to share was denied by the user.",
+        });
       }
     }
   };
 
   const handleShareClick = async () => {
-    const canvas = qrCodeRef.current?.querySelector<HTMLCanvasElement>('canvas');
+    const canvas = qrCodeRef.current?.querySelector<HTMLCanvasElement>("canvas");
     if (!canvas || !navigator.share) {
       toast({
         variant: "destructive",
         title: "Share not available",
-        description: !canvas 
-          ? "QR code not found." 
+        description: !canvas
+          ? "QR code not found."
           : "Web Share API is not supported on this browser.",
       });
       return;
     }
 
     try {
-        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
-        if (!blob) {
-            toast({
-                variant: "destructive",
-                title: "Share failed",
-                description: "Failed to create image from QR code.",
-            });
-            return;
-        }
-        const file = new File([blob], 'geocrypt-qrcode.png', { type: 'image/png' });
-        await shareQrCode(file);
-    } catch (error: any) {
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/png")
+      );
+      if (!blob) {
         toast({
-            variant: "destructive",
-            title: "Share failed",
-            description: "An unexpected error occurred while preparing the share.",
+          variant: "destructive",
+          title: "Share failed",
+          description: "Failed to create image from QR code.",
         });
+        return;
+      }
+      const file = new File([blob], "geocrypt-qrcode.png", {
+        type: "image/png",
+      });
+      await shareQrCode(file);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Share failed",
+        description: "An unexpected error occurred while preparing the share.",
+      });
     }
   };
-
 
   return (
     <div className="w-full max-w-4xl mx-auto p-4 md:p-6">
@@ -231,17 +228,20 @@ export function QrGenerator() {
                 name="jsonData"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-lg sr-only">JSON / JS Object Payload</FormLabel>
+                    <FormLabel className="text-lg sr-only">
+                      Data Payload
+                    </FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder={'{\n  "id": "12345",\n  "sensitive_data": "user@example.com"\n}'}
+                        placeholder={'{ id:"123", name:"rahul Kandwal" }'}
                         className="min-h-[200px] font-code text-base bg-muted/50 focus-visible:ring-primary focus-visible:ring-2"
                         {...field}
                         onChange={handleDataChange}
                       />
                     </FormControl>
                     <FormDescription className="text-center">
-                      Your data is encrypted on your device before the QR code is generated.
+                      Your data is encrypted on your device before the QR code
+                      is generated.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -261,7 +261,13 @@ export function QrGenerator() {
               className="p-4 bg-white rounded-xl shadow-md"
               aria-label="Generated QR Code"
             >
-              <QRCode value={qrValue} size={256} level="H" bgColor="#ffffff" fgColor="#000000"/>
+              <QRCode
+                value={qrValue}
+                size={256}
+                level="H"
+                bgColor="#ffffff"
+                fgColor="#000000"
+              />
             </div>
             <div className="flex flex-wrap justify-center gap-4">
               <Button onClick={handleDownload} variant="outline" size="lg">
