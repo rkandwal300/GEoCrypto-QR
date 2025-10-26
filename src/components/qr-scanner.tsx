@@ -337,5 +337,3 @@ export function QrScanner() {
     </div>
   );
 }
-
-    
