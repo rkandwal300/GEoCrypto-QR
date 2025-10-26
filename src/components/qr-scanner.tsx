@@ -25,7 +25,7 @@ type ScannedDataType = {
     };
     scannedAt: string;
   };
-} & object;
+} & Record<string, any>;
 
 export function QrScanner() {
   const [scannedData, setScannedData] = useState<ScannedDataType | null>(null);
@@ -70,7 +70,7 @@ export function QrScanner() {
       setHasCameraPermission(true);
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        videoRef.current.play().catch(err => console.error("Video play interrupted", err));
       }
       setIsScanning(true);
     } catch (err: any) {
@@ -108,7 +108,7 @@ export function QrScanner() {
       });
       
       const mergedData = {
-        ...decrypted,
+        ...(decrypted as object),
         scanDetails: {
           scannedAt: new Date().toISOString(),
           location: {
@@ -242,7 +242,7 @@ export function QrScanner() {
       <CardContent className="space-y-6">
         <div style={{ display: scannedData || isLoading ? 'none' : 'block' }}>
           <div className="relative aspect-square w-full max-w-md mx-auto rounded-lg overflow-hidden border-4 border-dashed">
-             <video ref={videoRef} id={readerId} className="w-full h-full object-cover" playsInline />
+             <video ref={videoRef} id={readerId} className="w-full h-full object-cover" playsInline muted />
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                  <div className="w-2/3 h-2/3 border-4 border-white/50 rounded-2xl shadow-lg" />
               </div>
