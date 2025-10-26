@@ -1,9 +1,8 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
 import { Html5Qrcode } from "html5-qrcode";
-import { Camera, ScanLine, MapPin, AlertTriangle, Loader2, FileUp, KeyRound } from "lucide-react";
+import { Camera, ScanLine, MapPin, AlertTriangle, Loader2, FileUp, KeyRound, RefreshCw } from "lucide-react";
 
 import {
   Card,
@@ -26,8 +25,7 @@ type ScannedDataType = {
     };
     scannedAt: string;
   };
-  [key: string]: any;
-};
+} & object;
 
 export function QrScanner() {
   const [scannedData, setScannedData] = useState<ScannedDataType | null>(null);
@@ -46,13 +44,13 @@ export function QrScanner() {
   const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
   const stopCamera = () => {
+    if (scannerRef.current && scannerRef.current.isScanning) {
+        scannerRef.current.stop().catch(err => console.error("Ignoring scanner stop error", err));
+    }
     if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
       stream.getTracks().forEach(track => track.stop());
       videoRef.current.srcObject = null;
-    }
-    if (scannerRef.current && scannerRef.current.isScanning) {
-        scannerRef.current.stop().catch(err => console.error("Ignoring scanner stop error", err));
     }
     setIsScanning(false);
   };
@@ -60,16 +58,21 @@ export function QrScanner() {
   const startScanner = async () => {
     setError(null);
     setScannedData(null);
-    setIsScanning(true);
   
     try {
+      if (!scannerRef.current) {
+        scannerRef.current = new Html5Qrcode(readerId, false);
+      }
+      
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { facingMode: "environment" } 
       });
       setHasCameraPermission(true);
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        videoRef.current.play();
       }
+      setIsScanning(true);
     } catch (err: any) {
       setHasCameraPermission(false);
       setError(`Camera permission denied. Please allow camera access in your browser settings or use the upload option.`);
@@ -78,13 +81,7 @@ export function QrScanner() {
   };
 
   useEffect(() => {
-    // Initialize scanner instance once.
-    if (!scannerRef.current) {
-      // The `verbose: false` option is passed to prevent logging to the console.
-      scannerRef.current = new Html5Qrcode(readerId, false);
-    }
     startScanner();
-
     return () => {
       stopCamera();
     };
@@ -137,7 +134,6 @@ export function QrScanner() {
         title: "Scan Error",
         description: errorMessage,
       });
-      // Allow re-scanning after an error
       handleRescan();
     } finally {
       setIsLoading(false);
@@ -153,7 +149,7 @@ export function QrScanner() {
   };
 
   const handleCapture = async () => {
-    if (videoRef.current && canvasRef.current) {
+    if (videoRef.current && canvasRef.current && isScanning) {
         setIsLoading(true);
         const video = videoRef.current;
         const canvas = canvasRef.current;
@@ -164,13 +160,11 @@ export function QrScanner() {
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
             stopCamera();
             try {
-                const imageDataUrl = canvas.toDataURL('image/png');
-                const imageFile = await (await fetch(imageDataUrl)).blob();
-                const file = new File([imageFile], "capture.png", { type: "image/png"});
                 if (!scannerRef.current) {
                     scannerRef.current = new Html5Qrcode(readerId, false);
                 }
-                const decodedText = await scannerRef.current.scanFile(file, false);
+                const imageDataUrl = canvas.toDataURL('image/png');
+                const decodedText = await scannerRef.current.scanFile(dataURLtoFile(imageDataUrl, 'capture.png'), false);
                 await processDecodedText(decodedText);
             } catch (err) {
                  const errorMessage = "Could not decode QR code from the captured image. Please try again.";
@@ -187,6 +181,14 @@ export function QrScanner() {
     }
   }
 
+  function dataURLtoFile(dataurl: string, filename: string) {
+    let arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)?.[1],
+        bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+    while(n--){
+        u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new File([u8arr], filename, {type:mime});
+  }
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -224,27 +226,30 @@ export function QrScanner() {
     : "";
 
   return (
-    <Card className="w-full max-w-2xl shadow-2xl shadow-primary/10">
-      <CardHeader>
-        <CardTitle className="font-headline text-3xl flex items-center gap-2">
-          <ScanLine className="text-primary" />
+    <div className="w-full max-w-4xl mx-auto p-4 md:p-6">
+    <Card className="shadow-lg border-2 border-primary/10">
+      <CardHeader className="text-center">
+        <div className="mx-auto bg-primary/10 p-3 rounded-full w-fit">
+            <ScanLine className="w-8 h-8 text-primary" />
+        </div>
+        <CardTitle className="font-headline text-3xl mt-4">
           Scan & Decrypt QR
         </CardTitle>
-        <CardDescription>
-          Point your camera at a GeoCrypt QR code to securely view its content, or upload an image.
+        <CardDescription className="text-lg">
+          Point your camera at a GeoCrypt QR code to securely view its content.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div style={{ display: scannedData || isLoading ? 'none' : 'block' }}>
           <div className="relative aspect-square w-full max-w-md mx-auto rounded-lg overflow-hidden border-4 border-dashed">
-             <video ref={videoRef} id={readerId} className="w-full h-full object-cover" autoPlay playsInline muted />
+             <video ref={videoRef} id={readerId} className="w-full h-full object-cover" playsInline />
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                  <div className="w-2/3 h-2/3 border-4 border-white/50 rounded-2xl shadow-lg" />
               </div>
               
               {isScanning && hasCameraPermission && (
                   <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
-                    <Button onClick={handleCapture} size="icon" className="rounded-full w-20 h-20 bg-white/80 hover:bg-white border-4 border-primary shadow-lg">
+                    <Button onClick={handleCapture} size="icon" className="rounded-full w-20 h-20 bg-white/80 hover:bg-white border-4 border-primary shadow-lg transition-transform hover:scale-110">
                         <Camera className="w-10 h-10 text-primary" />
                     </Button>
                   </div>
@@ -256,7 +261,7 @@ export function QrScanner() {
                           <AlertTriangle className="h-4 w-4" />
                           <AlertTitle>Camera Access Required</AlertTitle>
                           <AlertDescription>
-                              Camera permission is not available. Please grant access in your browser settings or use the file upload option.
+                              Camera permission is not available. Grant access or use the file upload option.
                           </AlertDescription>
                       </Alert>
                   </div>
@@ -269,7 +274,7 @@ export function QrScanner() {
             <div className="flex flex-col items-center justify-center text-center p-8 h-96">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
                 <p className="mt-4 text-lg font-medium">Processing Data...</p>
-                <p className="text-muted-foreground">Capturing, decrypting, and fetching location.</p>
+                <p className="text-muted-foreground">Decrypting and fetching location.</p>
             </div>
         )}
 
@@ -282,9 +287,9 @@ export function QrScanner() {
         )}
 
         {scannedData ? (
-          <div className="space-y-6">
+          <div className="space-y-6 animate-in fade-in-50">
             <div>
-              <h3 className="font-semibold text-lg flex items-center gap-2"><KeyRound className="text-green-500" /> Decrypted Data</h3>
+              <h3 className="font-semibold text-xl flex items-center gap-2"><KeyRound className="text-green-500" /> Decrypted Data</h3>
               <Card className="bg-muted/50 dark:bg-muted/20 my-2">
                 <CardContent className="p-4">
                   <pre className="text-sm font-code w-full whitespace-pre-wrap break-words">
@@ -295,7 +300,7 @@ export function QrScanner() {
             </div>
             
             <div>
-               <h3 className="font-semibold text-lg flex items-center gap-2"><MapPin className="text-blue-500" /> Scan Location</h3>
+               <h3 className="font-semibold text-xl flex items-center gap-2"><MapPin className="text-blue-500" /> Scan Location</h3>
                {mapsApiKey ? (
                  <div className="aspect-video w-full rounded-lg overflow-hidden border mt-2">
                    <iframe
@@ -318,9 +323,9 @@ export function QrScanner() {
                         <li>Create or select a project.</li>
                         <li>Enable the "Maps Embed API".</li>
                         <li>Create an API Key under "Credentials".</li>
-                        <li>Create a file named <code className="font-mono text-sm">.env.local</code> in the root of your project.</li>
-                        <li>Add the following line to it: <code className="font-mono text-sm">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=YOUR_API_KEY_HERE</code></li>
-                        <li>Replace <code className="font-mono text-sm">YOUR_API_KEY_HERE</code> with your actual key and restart the development server.</li>
+                        <li>Create a file named <code className="font-mono text-sm bg-muted p-1 rounded-sm">.env.local</code> in your project's root folder.</li>
+                        <li>Add the following line to it: <code className="font-mono text-sm bg-muted p-1 rounded-sm">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=YOUR_API_KEY_HERE</code></li>
+                        <li>Replace <code className="font-mono text-sm">YOUR_API_KEY_HERE</code> with your actual key and restart the server.</li>
                      </ol>
                    </AlertDescription>
                  </Alert>
@@ -328,7 +333,7 @@ export function QrScanner() {
             </div>
 
             <Button onClick={handleRescan} className="w-full" size="lg">
-              <Camera className="mr-2 h-4 w-4" />
+              <RefreshCw className="mr-2 h-5 w-5" />
               Scan Another Code
             </Button>
           </div>
@@ -342,15 +347,14 @@ export function QrScanner() {
               accept="image/png, image/jpeg, image/gif"
               className="hidden"
             />
-            <Button onClick={() => fileInputRef.current?.click()} variant="outline" disabled={isLoading}>
-              <FileUp className="mr-2 h-4 w-4" />
+            <Button onClick={() => fileInputRef.current?.click()} variant="outline" size="lg" disabled={isLoading}>
+              <FileUp className="mr-2 h-5 w-5" />
               Upload QR Image
             </Button>
            </div>
         )}
       </CardContent>
     </Card>
+    </div>
   );
 }
-
-    
