@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Html5Qrcode, Html5QrcodeScannerState } from "html5-qrcode";
-import { Camera, ScanLine, MapPin, AlertTriangle, Loader2 } from "lucide-react";
+import { Camera, ScanLine, MapPin, AlertTriangle, Loader2, FileUp } from "lucide-react";
 
 import {
   Card,
@@ -14,20 +14,23 @@ import {
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { decryptData } from "@/lib/crypto";
-import { Badge } from "@/components/ui/badge";
 
 export function QrScanner() {
   const [scannedData, setScannedData] = useState<object | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const readerId = "qr-code-full-region";
 
   const { toast } = useToast();
 
   useEffect(() => {
     if (!scannerRef.current) {
-      const scanner = new Html5Qrcode(readerId);
+      const scanner = new Html5Qrcode(readerId, {
+        verbose: false,
+        formatsToSupport: [0, 1, 2, 7, 9, 8],
+      });
       scannerRef.current = scanner;
     }
 
@@ -60,12 +63,12 @@ export function QrScanner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const onScanSuccess = async (decodedText: string) => {
+  const processDecodedText = async (decodedText: string) => {
     setIsLoading(true);
     if (scannerRef.current?.getState() === Html5QrcodeScannerState.SCANNING) {
       await scannerRef.current.pause(true);
     }
-    
+
     try {
       const decrypted = decryptData(decodedText);
       
@@ -101,15 +104,20 @@ export function QrScanner() {
         className: "bg-green-100 dark:bg-green-900",
       });
     } catch (e: any) {
-      setError(e.message || "Failed to process QR code.");
+      const errorMessage = e instanceof Error ? e.message : "Invalid or corrupted QR code.";
+      setError(errorMessage);
       toast({
         variant: "destructive",
         title: "Scan Error",
-        description: e.message || "Invalid or corrupted QR code.",
+        description: errorMessage,
       });
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const onScanSuccess = (decodedText: string) => {
+    processDecodedText(decodedText);
   };
 
   const onScanFailure = (errorMessage: string) => {
@@ -122,6 +130,48 @@ export function QrScanner() {
     setScannedData(null);
     if (scannerRef.current?.getState() === Html5QrcodeScannerState.PAUSED) {
         await scannerRef.current.resume();
+    } else if (scannerRef.current?.getState() === Html5QrcodeScannerState.NOT_STARTED || scannerRef.current?.getState() === Html5QrcodeScannerState.STOPPED) {
+        await scannerRef.current?.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
+          onScanSuccess,
+          onScanFailure
+        );
+    }
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && scannerRef.current) {
+      handleRescan(); // Clear previous data
+      setIsLoading(true);
+      try {
+        await scannerRef.current.scanFile(file, true)
+          .then(decodedText => onScanSuccess(decodedText))
+          .catch(err => {
+            const errorMessage = err instanceof Error ? err.message : "Could not scan the QR code from the image.";
+            setError(errorMessage);
+            toast({
+              variant: "destructive",
+              title: "Upload Error",
+              description: errorMessage,
+            });
+          });
+      } catch (err: any) {
+        const errorMessage = err.message || "Failed to process the uploaded file.";
+        setError(errorMessage);
+        toast({
+          variant: "destructive",
+          title: "Upload Error",
+          description: errorMessage,
+        });
+      } finally {
+        setIsLoading(false);
+      }
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
@@ -133,7 +183,7 @@ export function QrScanner() {
           Scan & Decrypt QR
         </CardTitle>
         <CardDescription>
-          Point your camera at a GeoCrypt QR code to securely view its content with location data.
+          Point your camera at a GeoCrypt QR code to securely view its content with location data, or upload an image.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -172,8 +222,19 @@ export function QrScanner() {
             </Button>
           </div>
         ) : (
-           <div className="text-center text-muted-foreground">
-             <p>Align a QR code within the frame to scan.</p>
+           <div className="text-center space-y-4">
+             <p className="text-muted-foreground">Align a QR code within the frame to scan, or upload an image file.</p>
+             <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept="image/*"
+              className="hidden"
+            />
+            <Button onClick={() => fileInputRef.current?.click()} variant="outline">
+              <FileUp className="mr-2 h-4 w-4" />
+              Upload QR Code Image
+            </Button>
            </div>
         )}
       </CardContent>
