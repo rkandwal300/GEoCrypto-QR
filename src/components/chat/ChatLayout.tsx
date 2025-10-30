@@ -1,3 +1,4 @@
+
 'use client';
 import * as React from 'react';
 import { MessageSquare } from 'lucide-react';
@@ -51,51 +52,53 @@ export default function ChatLayout() {
 
   return (
     <SidebarProvider defaultOpen>
-        <div className="flex h-full w-full flex-row border-t">
-            <Sidebar className="h-full max-h-full border-r">
-                <SidebarContent className="p-0">
-                    <SidebarMenu>
-                        <SidebarGroup>
-                            <SidebarGroupLabel className="flex items-center">
-                                <MessageSquare className="mr-2" />
-                                Conversations
-                            </SidebarGroupLabel>
-                            <SidebarGroupContent>
-                                {conversations.map((conv) => (
-                                    <SidebarMenuItem key={conv.userId}>
-                                        <SidebarMenuButton
-                                            onClick={() => setSelectedUser(conv)}
-                                            isActive={selectedUser.userId === conv.userId}
-                                            className="h-auto p-2"
-                                        >
-                                            <Avatar className="h-10 w-10">
-                                                <AvatarFallback>{conv.avatarFallback}</AvatarFallback>
-                                            </Avatar>
-                                            <div className="flex flex-col items-start">
-                                                <span className="font-medium">{conv.name}</span>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {conv.lastMessage}
-                                                </span>
-                                            </div>
-                                            <span className="ml-auto text-xs text-muted-foreground">
-                                                {conv.lastMessageTime}
-                                            </span>
-                                        </SidebarMenuButton>
-                                    </SidebarMenuItem>
-                                ))}
-                            </SidebarGroupContent>
-                        </SidebarGroup>
-                    </SidebarMenu>
-                </SidebarContent>
-            </Sidebar>
-            <div className="flex-1">
-                <ChatWidget
-                    userId="user1"
-                    otherId={selectedUser.userId}
-                    title={selectedUser.name}
-                />
-            </div>
+      <div className="flex h-full w-full flex-row border-t">
+        <Sidebar className="h-full max-h-full border-r">
+          <SidebarContent className="p-0">
+            <SidebarMenu>
+              <SidebarGroup>
+                <SidebarGroupLabel className="flex items-center">
+                  <MessageSquare className="mr-2" />
+                  Conversations
+                </SidebarGroupLabel>
+                <SidebarGroupContent>
+                  {conversations.map((conv) => (
+                    <SidebarMenuItem key={conv.userId}>
+                      <SidebarMenuButton
+                        onClick={() => setSelectedUser(conv)}
+                        isActive={selectedUser.userId === conv.userId}
+                        className="h-auto p-2"
+                      >
+                        <Avatar className="h-10 w-10">
+                          <AvatarFallback>
+                            {conv.avatarFallback}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col items-start">
+                          <span className="font-medium">{conv.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {conv.lastMessage}
+                          </span>
+                        </div>
+                        <span className="ml-auto text-xs text-muted-foreground">
+                          {conv.lastMessageTime}
+                        </span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarGroupContent>
+              </SidebarGroup>
+            </SidebarMenu>
+          </SidebarContent>
+        </Sidebar>
+        <div className="flex-1">
+          <ChatWidget
+            userId="user1"
+            otherId={selectedUser.userId}
+            title={selectedUser.name}
+          />
         </div>
+      </div>
     </SidebarProvider>
   );
 }
