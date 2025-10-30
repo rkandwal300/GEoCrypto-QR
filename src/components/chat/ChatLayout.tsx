@@ -88,7 +88,7 @@ export default function ChatLayout() {
             </SidebarMenu>
           </SidebarContent>
         </Sidebar>
-        <div className="flex-1">
+        <div className="flex-1 h-full">
           <ChatWidget
             userId="user1"
             otherId={selectedUser.userId}
