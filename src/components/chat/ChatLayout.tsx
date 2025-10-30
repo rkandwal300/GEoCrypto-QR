@@ -50,7 +50,7 @@ export default function ChatLayout() {
   const [selectedUser, setSelectedUser] = React.useState(conversations[0]);
 
   return (
-    <div className="flex h-full max-h-[calc(100vh-4rem-1px)] w-full flex-row">
+    <div className="flex h-full w-full flex-row">
       <SidebarProvider defaultOpen>
         <Sidebar className="h-full max-h-full border-r">
           <SidebarContent className="p-0">

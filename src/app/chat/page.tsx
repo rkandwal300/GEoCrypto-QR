@@ -1,5 +1,9 @@
 import ChatLayout from "@/components/chat/ChatLayout";
 
 export default function ChatPage() {
-  return <ChatLayout />;
+  return (
+    <div className="h-[calc(100vh-4rem-1px)]">
+      <ChatLayout />
+    </div>
+  );
 }
