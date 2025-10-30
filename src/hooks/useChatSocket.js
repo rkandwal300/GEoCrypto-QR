@@ -60,41 +60,36 @@ const createMockSocket = () => {
 export function useChatSocket({ userId, otherId, roomId }) {
   const resolvedRoomId = roomId || [userId, otherId].sort().join('--');
   
-  // Persist messages in sessionStorage
-  const [messages, setMessages] = useState(() => {
-    if (typeof window === 'undefined') return [];
-    try {
-      const storedMessages = sessionStorage.getItem(`chat_${resolvedRoomId}`);
-      return storedMessages ? JSON.parse(storedMessages) : [];
-    } catch (error) {
-      console.error("Failed to parse messages from sessionStorage", error);
-      return [];
-    }
-  });
+  // Initialize state with an empty array to prevent hydration mismatch.
+  const [messages, setMessages] = useState([]);
   
   const [connected, setConnected] = useState(false);
   const socketRef = useRef(null);
 
+  // Effect to load from and save to sessionStorage on the client side only.
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    // Load initial messages from sessionStorage
+    try {
+      const storedMessages = sessionStorage.getItem(`chat_${resolvedRoomId}`);
+      if (storedMessages) {
+        setMessages(JSON.parse(storedMessages));
+      } else {
+        setMessages([]); // Ensure messages are cleared when switching to a room with no history
+      }
+    } catch (error) {
+      console.error("Failed to parse messages from sessionStorage", error);
+      setMessages([]);
+    }
+  }, [resolvedRoomId]);
+
+  // Effect to save messages whenever they change
+  useEffect(() => {
     try {
       sessionStorage.setItem(`chat_${resolvedRoomId}`, JSON.stringify(messages));
     } catch (error) {
        console.error("Failed to save messages to sessionStorage", error);
     }
   }, [messages, resolvedRoomId]);
-  
-  // Clear messages when chat room changes
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const storedMessages = sessionStorage.getItem(`chat_${resolvedRoomId}`);
-      setMessages(storedMessages ? JSON.parse(storedMessages) : []);
-    } catch (error) {
-      console.error("Failed to parse messages from sessionStorage", error);
-      setMessages([]);
-    }
-  }, [resolvedRoomId]);
 
 
   useEffect(() => {
