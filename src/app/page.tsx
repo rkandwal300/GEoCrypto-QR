@@ -1,5 +1,7 @@
 import { QrGenerator } from "@/components/qr-generator";
+import ChatWidget from "@/components/chat/ChatWidget";
 
 export default function GeneratePage() {
-  return <QrGenerator />;
+  return <ChatWidget />;
+  // return <QrGenerator />;
 }
