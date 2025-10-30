@@ -1,5 +1,5 @@
-import ChatLayout from "@/components/chat/ChatLayout";
+import { QrGenerator } from "@/components/qr-generator";
 
-export default function Home() {
-  return <ChatLayout defaultLayout={[265, 1000]} />;
+export default function GeneratePage() {
+  return <QrGenerator />;
 }

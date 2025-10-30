@@ -2,15 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { QrCode, ScanLine, Wand2 } from "lucide-react";
+import { QrCode, ScanLine, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Header() {
   const pathname = usePathname();
 
   const navItems = [
-    { href: "/", label: "Generate", icon: <Wand2 className="h-4 w-4" /> },
+    { href: "/", label: "Generate", icon: <QrCode className="h-4 w-4" /> },
     { href: "/scan", label: "Scan", icon: <ScanLine className="h-4 w-4" /> },
+    { href: "/chat", label: "Chat", icon: <MessageSquare className="h-4 w-4" /> },
   ];
 
   return (

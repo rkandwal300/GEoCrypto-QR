@@ -177,10 +177,12 @@ export function useChatSocket({ userId, otherId, roomId }) {
     }
 
     return () => {
-      socket.disconnect();
-      socket.off('connect', onConnect);
-      socket.off('disconnect', onDisconnect);
-      socket.off('receiveMessage', onReceiveMessage);
+      if (socket) {
+        socket.disconnect();
+        socket.off('connect', onConnect);
+        socket.off('disconnect', onDisconnect);
+        socket.off('receiveMessage', onReceiveMessage);
+      }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedRoomId]); // Re-run effect if room changes
