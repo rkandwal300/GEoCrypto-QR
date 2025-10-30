@@ -1,6 +1,6 @@
 'use client';
 import * as React from 'react';
-import { MessageSquare, PanelLeft } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -11,12 +11,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
-  SidebarTrigger,
-  useSidebar,
 } from '@/components/ui/sidebar';
 import { ChatWidget } from './ChatWidget';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 
 const conversations = [
   {
@@ -49,31 +46,6 @@ const conversations = [
   },
 ];
 
-function ChatArea({
-  selectedUser,
-}: {
-  selectedUser: (typeof conversations)[0];
-}) {
-  const { open } = useSidebar();
-  return (
-    <div className="flex flex-1 flex-col h-full">
-      <div className="flex items-center gap-2 p-2 border-b">
-        {!open && <SidebarTrigger asChild>
-          <Button variant="ghost" size="icon" className="md:hidden">
-            <PanelLeft />
-          </Button>
-        </SidebarTrigger>}
-      </div>
-      <ChatWidget
-        userId="user1"
-        otherId={selectedUser.userId}
-        title={selectedUser.name}
-      />
-    </div>
-  );
-}
-
-
 export default function ChatLayout() {
   const [selectedUser, setSelectedUser] = React.useState(conversations[0]);
 
@@ -99,9 +71,9 @@ export default function ChatLayout() {
                                             <Avatar className="h-10 w-10">
                                                 <AvatarFallback>{conv.avatarFallback}</AvatarFallback>
                                             </Avatar>
-                                            <div className="flex flex-col items-start truncate">
+                                            <div className="flex flex-col items-start">
                                                 <span className="font-medium">{conv.name}</span>
-                                                <span className="text-xs text-muted-foreground truncate">
+                                                <span className="text-xs text-muted-foreground">
                                                     {conv.lastMessage}
                                                 </span>
                                             </div>
@@ -116,8 +88,12 @@ export default function ChatLayout() {
                     </SidebarMenu>
                 </SidebarContent>
             </Sidebar>
-            <div className="flex-1 flex flex-col h-full">
-                <ChatArea selectedUser={selectedUser} />
+            <div className="flex-1">
+                <ChatWidget
+                    userId="user1"
+                    otherId={selectedUser.userId}
+                    title={selectedUser.name}
+                />
             </div>
         </div>
     </SidebarProvider>
