@@ -16,9 +16,10 @@ const createMockSocket = () => {
       // Simulate server echoing back the message for 'sendMessage'
       if (event === 'sendMessage') {
         const messageWithId = {
-          ...data,
-          id: `msg-${Date.now()}-${Math.random()}`,
+          ...data.message, // The message is nested in the data object
+          id: data.optimisticId, // IMPORTANT: Reuse the optimistic ID
           timestamp: new Date().toISOString(),
+          status: 'sent', // Update status from 'sending'
         };
         // Simulate a small network delay
         setTimeout(() => {
@@ -57,12 +58,44 @@ const createMockSocket = () => {
  * @returns {{messages: Array, sendMessage: Function, connected: boolean}}
  */
 export function useChatSocket({ userId, otherId, roomId }) {
-  const [messages, setMessages] = useState([]);
+  const resolvedRoomId = roomId || [userId, otherId].sort().join('--');
+  
+  // Persist messages in sessionStorage
+  const [messages, setMessages] = useState(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const storedMessages = sessionStorage.getItem(`chat_${resolvedRoomId}`);
+      return storedMessages ? JSON.parse(storedMessages) : [];
+    } catch (error) {
+      console.error("Failed to parse messages from sessionStorage", error);
+      return [];
+    }
+  });
+  
   const [connected, setConnected] = useState(false);
   const socketRef = useRef(null);
 
-  // Determine the room ID. Sort user IDs to ensure consistency.
-  const resolvedRoomId = roomId || [userId, otherId].sort().join('--');
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      sessionStorage.setItem(`chat_${resolvedRoomId}`, JSON.stringify(messages));
+    } catch (error) {
+       console.error("Failed to save messages to sessionStorage", error);
+    }
+  }, [messages, resolvedRoomId]);
+  
+  // Clear messages when chat room changes
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const storedMessages = sessionStorage.getItem(`chat_${resolvedRoomId}`);
+      setMessages(storedMessages ? JSON.parse(storedMessages) : []);
+    } catch (error) {
+      console.error("Failed to parse messages from sessionStorage", error);
+      setMessages([]);
+    }
+  }, [resolvedRoomId]);
+
 
   useEffect(() => {
     // Determine whether to use mock or real socket based on environment variable
@@ -100,18 +133,21 @@ export function useChatSocket({ userId, otherId, roomId }) {
     });
 
     socket.on('receiveMessage', (message) => {
-      // Update state with the new message from the server/mock
       setMessages((prevMessages) => {
-        // Avoid duplicating optimistically added messages
-        if (prevMessages.find((m) => m.id === message.id)) {
-          return prevMessages.map((m) => (m.id === message.id ? message : m));
+        // Find if the message already exists (for optimistic updates)
+        const existingIndex = prevMessages.findIndex((m) => m.id === message.id);
+        if (existingIndex !== -1) {
+          // If it exists, update it (e.g., from 'sending' to 'sent')
+          const updatedMessages = [...prevMessages];
+          updatedMessages[existingIndex] = message;
+          return updatedMessages;
         }
+        // Otherwise, add the new message
         return [...prevMessages, message];
       });
     });
 
     // --- Initial Data Fetch ---
-    // Fetch message history when the component mounts
     const fetchHistory = async () => {
       try {
         const response = await fetch(
@@ -128,6 +164,15 @@ export function useChatSocket({ userId, otherId, roomId }) {
 
     if (!useMock) {
       fetchHistory();
+    } else {
+      // In mock mode, if session storage is empty, populate with some data.
+      if (messages.length === 0) {
+         const mockHistory = [
+            { id: 'mock-1', text: 'Hello! This is a mock chat history.', senderId: otherId, timestamp: new Date(Date.now() - 60000 * 5).toISOString(), type: 'text' },
+            { id: 'mock-2', text: 'You can switch to a real backend via environment variables.', senderId: otherId, timestamp: new Date(Date.now() - 60000 * 4).toISOString(), type: 'text' },
+         ];
+         setMessages(mockHistory);
+      }
     }
 
     // --- Connect & Cleanup ---
@@ -141,6 +186,7 @@ export function useChatSocket({ userId, otherId, roomId }) {
       socket.off('disconnect');
       socket.off('receiveMessage');
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedRoomId]); // Re-run effect if room changes
 
   /**
@@ -154,21 +200,21 @@ export function useChatSocket({ userId, otherId, roomId }) {
       return;
     }
 
+    const optimisticId = `temp-${Date.now()}`;
     const optimisticMessage = {
       ...messageData,
-      id: `temp-${Date.now()}`, // Temporary ID for optimistic update
+      id: optimisticId, // Temporary ID for optimistic update
       timestamp: new Date().toISOString(),
       senderId: userId,
       status: 'sending', // Visual cue for optimistic state
     };
 
-    // Optimistically add to UI
     setMessages((prevMessages) => [...prevMessages, optimisticMessage]);
 
-    // Emit to server
     socket.emit('sendMessage', {
-      ...messageData,
+      message: messageData,
       roomId: resolvedRoomId,
+      optimisticId: optimisticId, // Send the temp ID to the mock server
     });
   };
 
