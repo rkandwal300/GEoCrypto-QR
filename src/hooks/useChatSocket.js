@@ -121,31 +121,32 @@ export function useChatSocket({ userId, otherId, roomId }) {
 
     const socket = socketRef.current;
 
-    // --- Event Listeners ---
-    socket.on('connect', () => {
+    // --- Event Handlers ---
+    const onConnect = () => {
       setConnected(true);
-      // Join a room for targeted messaging
       socket.emit('joinRoom', resolvedRoomId);
-    });
+    };
 
-    socket.on('disconnect', () => {
+    const onDisconnect = () => {
       setConnected(false);
-    });
+    };
 
-    socket.on('receiveMessage', (message) => {
+    const onReceiveMessage = (message) => {
       setMessages((prevMessages) => {
-        // Find if the message already exists (for optimistic updates)
         const existingIndex = prevMessages.findIndex((m) => m.id === message.id);
         if (existingIndex !== -1) {
-          // If it exists, update it (e.g., from 'sending' to 'sent')
           const updatedMessages = [...prevMessages];
           updatedMessages[existingIndex] = message;
           return updatedMessages;
         }
-        // Otherwise, add the new message
         return [...prevMessages, message];
       });
-    });
+    };
+
+    // --- Event Listeners ---
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+    socket.on('receiveMessage', onReceiveMessage);
 
     // --- Initial Data Fetch ---
     const fetchHistory = async () => {
@@ -182,9 +183,9 @@ export function useChatSocket({ userId, otherId, roomId }) {
 
     return () => {
       socket.disconnect();
-      socket.off('connect');
-      socket.off('disconnect');
-      socket.off('receiveMessage');
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+      socket.off('receiveMessage', onReceiveMessage);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedRoomId]); // Re-run effect if room changes
