@@ -30,6 +30,11 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
   } from "@/components/ui/dropdown-menu"
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+  } from "@/components/ui/popover"
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -87,6 +92,9 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
     { id: 'user3', name: 'Bob', avatar: 'https://i.pravatar.cc/150?u=user3' },
   ];
 
+  const emojis = ['😀', '😂', '😍', '🤔', '👍', '❤️', '🎉', '🔥', '🙏', '💯'];
+
+
   // Scroll to the bottom of the message list whenever new messages are added
   useEffect(() => {
     if (scrollAreaRef.current && !searchQuery) {
@@ -108,6 +116,10 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
       sendMessage(message);
       setInputValue('');
     }
+  };
+
+  const handleEmojiClick = (emoji) => {
+    setInputValue((prev) => prev + emoji);
   };
 
   // Handler for file uploads
@@ -151,7 +163,6 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
 
   const headerActions = [
     { icon: Phone, tooltip: 'Call', onClick: () => {} },
-    { icon: Star, tooltip: 'Starred Messages', onClick: () => setSidebarOpen(true) },
     { icon: Search, tooltip: 'Search', onClick: () => setIsSearchVisible(true) },
   ];
 
@@ -289,14 +300,32 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
 
         <footer className="chat-footer">
             <div className="chat-input-wrapper">
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0">
-                            <Smile className="h-5 w-5" />
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent><p>Emoji</p></TooltipContent>
-                </Tooltip>
+                <Popover>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <PopoverTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0">
+                                    <Smile className="h-5 w-5" />
+                                </Button>
+                            </PopoverTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Emoji</p></TooltipContent>
+                    </Tooltip>
+                    <PopoverContent className="w-auto p-2">
+                        <div className="grid grid-cols-5 gap-2">
+                            {emojis.map((emoji) => (
+                                <Button
+                                    key={emoji}
+                                    variant="ghost"
+                                    className="text-xl p-0 h-9 w-9"
+                                    onClick={() => handleEmojiClick(emoji)}
+                                >
+                                    {emoji}
+                                </Button>
+                            ))}
+                        </div>
+                    </PopoverContent>
+                </Popover>
 
                 <Textarea
                     value={inputValue}
@@ -440,3 +469,5 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
     </TooltipProvider>
   );
 }
+
+    
