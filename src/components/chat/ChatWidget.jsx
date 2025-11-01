@@ -55,7 +55,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
   const [starredMessages, setStarredMessages] = useState(new Set());
   const [isEmojiPickerOpen, setEmojiPickerOpen] = useState(false);
 
-  const messageEndRef = useRef(null);
+  const contentRef = useRef(null);
   const fileInputRef = useRef(null);
   const messageRefs = useRef({});
 
@@ -84,8 +84,8 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
   ];
 
   useEffect(() => {
-    if (messageEndRef.current && !searchQuery) {
-       messageEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (contentRef.current && !searchQuery) {
+       contentRef.current.scrollTop = contentRef.current.scrollHeight;
     }
   }, [messages, searchQuery]);
 
@@ -178,7 +178,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
   const sidebarItems = [
     {
       key: '1',
-      label: 'Starred Messages',
+      label: <span style={{ fontWeight: 600 }}>Starred Messages</span>,
       children:
         starredMessagesDetails.length > 0 ? (
           <List
@@ -213,7 +213,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
     },
     {
       key: '2',
-      label: 'People',
+      label: <span style={{ fontWeight: 600 }}>People</span>,
       children: (
         <List
           dataSource={peopleInChat}
@@ -371,7 +371,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
           </Space>
         )}
       </Header>
-      <Content style={{ flex: 1, overflow: 'auto', padding: '16px 0' }}>
+      <Content style={{ flex: 1, overflow: 'auto', padding: '16px 0' }} ref={contentRef}>
           <List
             split={false}
             dataSource={filteredMessages}
@@ -459,7 +459,6 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
               );
             }}
           />
-          <div ref={messageEndRef} />
       </Content>
       <Footer
         style={{
