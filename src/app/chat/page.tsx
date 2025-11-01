@@ -1,9 +1,9 @@
-import ChatLayout from "@/components/chat/ChatLayout";
+import { ChatWidget } from "@/components/chat/ChatWidget";
 
 export default function ChatPage() {
   return (
     <div className="flex-1 h-[calc(100vh-4rem-1px)]">
-      <ChatLayout />
+      <ChatWidget userId="user1" otherId="user2" title="Chat" />
     </div>
   );
 }
