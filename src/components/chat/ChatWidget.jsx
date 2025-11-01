@@ -45,7 +45,7 @@ const { TextArea } = Input;
  * @param {string} props.userId - The ID of the current user.
  * @param {string} props.otherId - The ID of the other user in the chat.
  * @param {string} [props.roomId] - The explicit room ID, if available.
- * @param {string} [props.title='Chat'] - The title to display in the chat header.
+ * @param {string} [props.title='trip-123'] - The title to display in the chat header.
  */
 export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
   const [inputValue, setInputValue] = useState('');
@@ -319,7 +319,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
         }}
       >
         <Flex align="center" gap="middle">
-          <Badge dot color={connected ? 'green' : 'red'} offset={[0, 32]}>
+          <Badge dot color={connected ? 'green' : 'red'} offset={[10, 45]}>
             <Avatar size="large">{title.charAt(0)}</Avatar>
           </Badge>
           <Flex vertical>
