@@ -34,7 +34,6 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { useChatSocket } from '../../hooks/useChatSocket';
 import Picker from 'emoji-picker-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 const { Header, Content, Footer } = Layout;
 const { Text, Title } = Typography;
@@ -56,7 +55,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
   const [starredMessages, setStarredMessages] = useState(new Set());
   const [isEmojiPickerOpen, setEmojiPickerOpen] = useState(false);
 
-  const scrollAreaRef = useRef(null);
+  const messageEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const messageRefs = useRef({});
 
@@ -85,13 +84,8 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
   ];
 
   useEffect(() => {
-    if (scrollAreaRef.current && !searchQuery) {
-      const scrollableViewport = scrollAreaRef.current.querySelector(
-        '[data-radix-scroll-area-viewport]'
-      );
-      if (scrollableViewport) {
-        scrollableViewport.scrollTop = scrollableViewport.scrollHeight;
-      }
+    if (messageEndRef.current && !searchQuery) {
+       messageEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, searchQuery]);
 
@@ -323,7 +317,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
         }}
       >
         <Flex align="center" gap="middle">
-          <Badge dot color={connected ? 'green' : 'red'} offset={[-8, 32]}>
+          <Badge dot color={connected ? 'green' : 'red'} offset={[0, 32]}>
             <Avatar size="large">{title.charAt(0)}</Avatar>
           </Badge>
           <Flex vertical>
@@ -377,11 +371,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
           </Space>
         )}
       </Header>
-      <Content style={{ flex: 1, overflow: 'hidden' }}>
-        <ScrollArea
-          className="chat-messages-container h-full"
-          ref={scrollAreaRef}
-        >
+      <Content style={{ flex: 1, overflow: 'auto', padding: '16px 0' }}>
           <List
             split={false}
             dataSource={filteredMessages}
@@ -469,7 +459,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
               );
             }}
           />
-        </ScrollArea>
+          <div ref={messageEndRef} />
       </Content>
       <Footer
         style={{
