@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Header } from "@/components/header";
 import { cn } from "@/lib/utils";
 import { AntdRegistry } from "@/lib/AntdRegistry";
+import { ConfigProvider } from "antd";
 
 export const metadata: Metadata = {
   title: "GeoCrypt QR",
@@ -36,11 +37,11 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <AntdRegistry>
-          <Header />
-          <main className="flex-1 pt-2">
-            {children}
-          </main>
-          <Toaster />
+            <Header />
+            <main className="flex-1 pt-2">
+              {children}
+            </main>
+            <Toaster />
         </AntdRegistry>
       </body>
     </html>
