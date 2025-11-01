@@ -322,12 +322,13 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
 
         <Sheet open={isPeopleSidebarOpen} onOpenChange={setPeopleSidebarOpen}>
           <SheetContent className="w-[350px] sm:w-[400px] p-0 flex flex-col">
-            <div className="p-4 border-b">
+            <SheetHeader className="p-4 border-b">
+                <SheetTitle className="sr-only">People</SheetTitle>
                 <div className="relative">
                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                      <Input placeholder="Search people..." className="pl-9"/>
                 </div>
-            </div>
+            </SheetHeader>
             <ScrollArea className="flex-1">
               <div className="p-4 space-y-2">
                   <h3 className="font-semibold text-lg px-2">People</h3>
