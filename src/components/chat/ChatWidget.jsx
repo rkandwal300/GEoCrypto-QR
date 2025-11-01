@@ -53,6 +53,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [starredMessages, setStarredMessages] = useState(new Set());
+  const [isEmojiPickerOpen, setEmojiPickerOpen] = useState(false);
 
   const scrollAreaRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -97,6 +98,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
       };
       sendMessage(message);
       setInputValue('');
+      setEmojiPickerOpen(false);
     }
   };
 
@@ -133,14 +135,17 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
     });
     setSidebarOpen(false);
   };
+  
+  const moreOptionsMenu = {
+    items: [
+      {
+        key: 'location',
+        icon: <EnvironmentOutlined />,
+        label: 'Send current location',
+      },
+    ]
+  };
 
-  const moreOptionsMenu = [
-    {
-      key: 'location',
-      icon: <EnvironmentOutlined />,
-      label: 'Send current location',
-    },
-  ];
 
   const sidebarContent = (
     <>
@@ -301,13 +306,19 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
       </Content>
       <Footer style={{ padding: '12px 16px', borderTop: '1px solid hsl(var(--border))', background: 'hsl(var(--background))' }}>
         <Flex align="center" gap="small">
-          <Popover content={<Picker onEmojiClick={handleEmojiClick} />} trigger="click" placement="topLeft">
+          <Popover 
+            content={<Picker onEmojiClick={handleEmojiClick} />} 
+            trigger="click" 
+            open={isEmojiPickerOpen}
+            onOpenChange={setEmojiPickerOpen}
+            placement="topLeft"
+          >
             <Button shape="circle" icon={<SmileOutlined />} />
           </Popover>
           <input type="file" ref={fileInputRef} onChange={handleFileUpload} style={{ display: 'none' }} disabled={!connected} />
           <Button shape="circle" icon={<PaperClipOutlined />} onClick={() => fileInputRef.current?.click()} disabled={!connected} />
           
-          <Dropdown menu={{ items: moreOptionsMenu }} placement="topRight" trigger={['click']}>
+          <Dropdown menu={moreOptionsMenu} placement="topRight" trigger={['click']}>
              <Button shape="circle" icon={<MoreOutlined />} />
           </Dropdown>
 
@@ -324,7 +335,12 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
             autoSize={{ minRows: 1, maxRows: 4 }}
             disabled={!connected}
             autoFocus
-            style={{ flex: 1 }}
+            style={{ 
+              flex: 1,
+              background: 'hsl(var(--muted))',
+              border: 'none',
+              boxShadow: 'none',
+            }}
           />
 
           <Button
@@ -338,7 +354,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
       </Footer>
 
       <Drawer
-        title={<Typography.Title level={4} style={{margin: 0}}>Details</Typography.Title>}
+        title={<div className="sr-only">Details</div>}
         placement="right"
         onClose={() => setSidebarOpen(false)}
         open={isSidebarOpen}

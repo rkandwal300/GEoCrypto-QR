@@ -1,6 +1,5 @@
 
 import type {NextConfig} from 'next';
-import {extractStaticStyle} from '@ant-design/cssinjs';
 
 const nextConfig: NextConfig = {
   /* config options here */
