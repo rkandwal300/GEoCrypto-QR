@@ -142,6 +142,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
 
   const headerActions = [
     { icon: Phone, tooltip: 'Call', onClick: () => {} },
+    { icon: Star, tooltip: 'Starred Messages', onClick: () => setSidebarOpen(true) },
     { icon: Search, tooltip: 'Search', onClick: () => setIsSearchVisible(true) },
   ];
 
@@ -325,6 +326,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
         <Sheet open={isSidebarOpen} onOpenChange={setSidebarOpen}>
             <SheetContent className="w-[350px] sm:w-[400px] p-0 flex flex-col">
               <SheetHeader className="p-4 border-b">
+                 <SheetTitle className="sr-only">Chat Information</SheetTitle>
                  <div className="flex items-center gap-4">
                     <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -394,3 +396,5 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
     </TooltipProvider>
   );
 }
+
+    
