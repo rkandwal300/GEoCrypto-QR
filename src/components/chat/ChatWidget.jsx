@@ -46,7 +46,6 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
   const [isStarredSheetOpen, setStarredSheetOpen] = useState(false);
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [peopleSearchQuery, setPeopleSearchQuery] = useState('');
   const [starredMessages, setStarredMessages] = useState(new Set());
   const [hoveredMessageId, setHoveredMessageId] = useState(null);
 
@@ -73,11 +72,6 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
     { id: 'user2', name: 'Alice', avatar: 'https://i.pravatar.cc/150?u=user2' },
     { id: 'user3', name: 'Bob', avatar: 'https://i.pravatar.cc/150?u=user3' },
   ];
-
-  const filteredPeople = peopleInChat.filter((person) => 
-    person.name.toLowerCase().includes(peopleSearchQuery.toLowerCase())
-  );
-
 
   // Scroll to the bottom of the message list whenever new messages are added
   useEffect(() => {
@@ -139,6 +133,8 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
       block: 'center',
     });
     setStarredSheetOpen(false);
+    // Also close the people sidebar if it's open
+    setPeopleSidebarOpen(false);
   };
 
   const headerActions = [
@@ -333,17 +329,17 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
                 <div className="relative mt-2">
                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                      <Input 
-                        placeholder="Search people..." 
+                        placeholder="Search messages..." 
                         className="pl-9"
-                        value={peopleSearchQuery}
-                        onChange={(e) => setPeopleSearchQuery(e.target.value)}
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
                       />
                 </div>
             </SheetHeader>
             <ScrollArea className="flex-1">
               <div className="p-4 space-y-2">
-                  <h3 className="font-semibold text-lg px-2">People</h3>
-                  {filteredPeople.map((person) => (
+                  <h3 className="font-semibold text-lg px-2">People in Chat</h3>
+                  {peopleInChat.map((person) => (
                     <div key={person.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted">
                         <Avatar>
                             <AvatarImage src={person.avatar} alt={person.name} />
@@ -362,6 +358,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
             <SheetHeader className="p-4 border-b text-left">
               <SheetTitle>Starred Messages</SheetTitle>
             </SheetHeader>
+_start
             <ScrollArea className="flex-1">
               <div className="p-2">
                 {starredMessagesDetails.length > 0 ? (
@@ -394,4 +391,3 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
   );
 }
 
-    
