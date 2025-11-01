@@ -323,7 +323,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
         }}
       >
         <Flex align="center" gap="middle">
-          <Badge dot color={connected ? 'green' : 'red'} offset={[-4, 34]}>
+          <Badge dot color={connected ? 'green' : 'red'} offset={[-10, 32]}>
             <Avatar size="large">{title.charAt(0)}</Avatar>
           </Badge>
           <Flex vertical>
