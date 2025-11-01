@@ -10,6 +10,7 @@ import {
   Star,
   Search,
   Users,
+  X,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useChatSocket } from '../../hooks/useChatSocket';
@@ -24,10 +25,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Separator } from '../ui/separator';
 import { ScrollArea } from '../ui/scroll-area';
 import { Textarea } from '../ui/textarea';
+import { cn } from '@/lib/utils';
+
 
 /**
  * A reusable chat UI component for real-time messaging.
@@ -40,8 +43,15 @@ import { Textarea } from '../ui/textarea';
 export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
   const [inputValue, setInputValue] = useState('');
   const [isPeopleSidebarOpen, setPeopleSidebarOpen] = useState(false);
+  const [isStarredSheetOpen, setStarredSheetOpen] = useState(false);
+  const [isSearchVisible, setIsSearchVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [starredMessages, setStarredMessages] = useState(new Set());
+  const [hoveredMessageId, setHoveredMessageId] = useState(null);
+
   const scrollAreaRef = useRef(null);
   const fileInputRef = useRef(null);
+  const messageRefs = useRef({});
 
   const { messages, sendMessage, connected } = useChatSocket({
     userId,
@@ -49,15 +59,23 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
     roomId,
   });
 
+  const filteredMessages = messages.filter((msg) =>
+    msg.text?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const starredMessagesDetails = Array.from(starredMessages)
+    .map((id) => messages.find((msg) => msg.id === id))
+    .filter(Boolean);
+
   // Scroll to the bottom of the message list whenever new messages are added
   useEffect(() => {
-    if (scrollAreaRef.current) {
+    if (scrollAreaRef.current && !searchQuery) {
       const scrollableViewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
       if (scrollableViewport) {
         scrollableViewport.scrollTop = scrollableViewport.scrollHeight;
       }
     }
-  }, [messages]);
+  }, [messages, searchQuery]);
 
   // Handler for sending a text message
   const handleSendMessage = () => {
@@ -92,11 +110,29 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
     };
     sendMessage(message);
   };
-  
+
+  const toggleStar = (messageId) => {
+    const newStarred = new Set(starredMessages);
+    if (newStarred.has(messageId)) {
+      newStarred.delete(messageId);
+    } else {
+      newStarred.add(messageId);
+    }
+    setStarredMessages(newStarred);
+  };
+
+  const scrollToMessage = (messageId) => {
+    messageRefs.current[messageId]?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    });
+    setStarredSheetOpen(false);
+  };
+
   const headerActions = [
-    { icon: Phone, tooltip: 'Call' },
-    { icon: Star, tooltip: 'Starred Messages' },
-    { icon: Search, tooltip: 'Search' },
+    { icon: Phone, tooltip: 'Call', onClick: () => {} },
+    { icon: Star, tooltip: 'Starred Messages', onClick: () => setStarredSheetOpen(true) },
+    { icon: Search, tooltip: 'Search', onClick: () => setIsSearchVisible(true) },
   ];
   
   const peopleInChat = [
@@ -126,42 +162,69 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
               </span>
             </div>
           </div>
-          <div className="chat-header-actions">
-            {headerActions.map((action, index) => (
-              <Tooltip key={index}>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <action.icon className="h-5 w-5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{action.tooltip}</p>
-                </TooltipContent>
-              </Tooltip>
-            ))}
-             <Separator orientation="vertical" className="h-6 mx-2" />
-             <Tooltip>
-                <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPeopleSidebarOpen(true)}>
-                        <Users className="h-5 w-5" />
+          
+          {isSearchVisible ? (
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Search messages..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-8"
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => {
+                  setIsSearchVisible(false);
+                  setSearchQuery('');
+                }}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+          ) : (
+            <div className="chat-header-actions">
+              {headerActions.map((action, index) => (
+                <Tooltip key={index}>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={action.onClick}>
+                      <action.icon className="h-5 w-5" />
                     </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                    <p>People</p>
-                </TooltipContent>
-            </Tooltip>
-          </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{action.tooltip}</p>
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+              <Separator orientation="vertical" className="h-6 mx-2" />
+              <Tooltip>
+                  <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPeopleSidebarOpen(true)}>
+                          <Users className="h-5 w-5" />
+                      </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                      <p>People</p>
+                  </TooltipContent>
+              </Tooltip>
+            </div>
+          )}
         </header>
 
         <ScrollArea className="chat-messages-container" ref={scrollAreaRef}>
           <div className="p-4 space-y-4">
-            {messages.map((item) => (
-                <div
-                  key={item.id}
-                  className={`chat-message ${
-                    item.senderId === userId ? 'sent' : 'received'
-                  }`}
-                >
+            {filteredMessages.map((item) => (
+              <div
+                key={item.id}
+                ref={(el) => (messageRefs.current[item.id] = el)}
+                onMouseEnter={() => setHoveredMessageId(item.id)}
+                onMouseLeave={() => setHoveredMessageId(null)}
+                className={`chat-message-wrapper ${
+                  item.senderId === userId ? 'sent' : 'received'
+                }`}
+              >
+                <div className={`chat-message ${item.senderId === userId ? 'sent' : 'received'}`}>
                   <div className="message-content">
                     {item.type === 'text' && <p>{item.text}</p>}
                     {item.type === 'file' && (
@@ -190,6 +253,24 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
                     </div>
                   </div>
                 </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="star-button h-7 w-7"
+                      onClick={() => toggleStar(item.id)}
+                    >
+                      <Star
+                        className={cn('h-4 w-4', starredMessages.has(item.id) && 'fill-current text-yellow-400')}
+                      />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Star message</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
               ))}
           </div>
         </ScrollArea>
@@ -259,6 +340,39 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
                         <span className="font-medium">{person.name}</span>
                     </div>
                   ))}
+              </div>
+            </ScrollArea>
+          </SheetContent>
+        </Sheet>
+
+        <Sheet open={isStarredSheetOpen} onOpenChange={setStarredSheetOpen}>
+          <SheetContent className="w-[350px] sm:w-[400px] p-0 flex flex-col">
+            <SheetHeader className="p-4 border-b text-left">
+              <SheetTitle>Starred Messages</SheetTitle>
+            </SheetHeader>
+            <ScrollArea className="flex-1">
+              <div className="p-2">
+                {starredMessagesDetails.length > 0 ? (
+                  starredMessagesDetails.map((msg) => (
+                    <button
+                      key={msg.id}
+                      onClick={() => scrollToMessage(msg.id)}
+                      className="block w-full text-left p-3 rounded-md hover:bg-muted"
+                    >
+                      <p className="font-semibold">{peopleInChat.find(p => p.id === msg.senderId)?.name || msg.senderId}</p>
+                      <p className="text-sm text-muted-foreground truncate">{msg.text}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {new Date(msg.timestamp).toLocaleDateString()}
+                      </p>
+                    </button>
+                  ))
+                ) : (
+                  <div className="text-center text-muted-foreground p-8">
+                    <Star className="mx-auto h-8 w-8 mb-2" />
+                    <p>No starred messages</p>
+                    <p className="text-xs mt-1">Star messages to easily find them later.</p>
+                  </div>
+                )}
               </div>
             </ScrollArea>
           </SheetContent>

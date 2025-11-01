@@ -47,20 +47,56 @@
   overflow-y: auto;
 }
 
+.chat-message-wrapper {
+  position: relative;
+  display: flex;
+}
+
+.chat-message-wrapper .star-button {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out, color 0.2s ease-in-out;
+  color: hsl(var(--muted-foreground));
+}
+
+.chat-message-wrapper:hover .star-button {
+  opacity: 1;
+}
+
+.chat-message.sent .star-button {
+  left: -2.5rem;
+}
+.chat-message.sent .star-button:hover {
+  color: hsl(var(--primary-foreground));
+}
+
+.chat-message.received .star-button {
+  right: -2.5rem;
+}
+.chat-message.received .star-button:hover {
+  color: hsl(var(--primary));
+}
+
 .chat-message {
   display: flex;
+  max-width: 90%; /* prevent star from going off screen */
 }
 
 .chat-message.sent {
   justify-content: flex-end;
+  margin-left: auto;
 }
 
 .chat-message.received {
   justify-content: flex-start;
+  margin-right: auto;
 }
 
 .message-content {
-  max-width: 75%;
+  max-width: 100%;
   padding: 8px 12px;
   border-radius: 18px;
   position: relative;
