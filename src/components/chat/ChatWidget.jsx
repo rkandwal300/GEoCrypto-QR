@@ -3,7 +3,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   PaperClipOutlined,
   SendOutlined,
-  PhoneOutlined,
   StarOutlined,
   StarFilled,
   SearchOutlined,
@@ -49,7 +48,7 @@ const { TextArea } = Input;
  * @param {string} [props.roomId] - The explicit room ID, if available.
  * @param {string} [props.title='Chat'] - The title to display in the chat header.
  */
-export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
+export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
   const [inputValue, setInputValue] = useState('');
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isSearchVisible, setIsSearchVisible] = useState(false);
@@ -239,27 +238,33 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
 
   const sidebarContent = (
     <>
-      <div className="sr-only">
-        <Drawer title="Details" />
-      </div>
-      <Flex
-        align="center"
-        justify="space-between"
-        style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0' }}
+      <Drawer
+        title={<div className="sr-only">Details</div>}
+        placement="right"
+        onClose={() => setSidebarOpen(false)}
+        open={isSidebarOpen}
+        width={350}
+        styles={{ header: { display: 'none' }, body: { padding: 0 } }}
       >
-        <Input
-          placeholder="Search messages..."
-          prefix={<SearchOutlined />}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        <Button
-          icon={<CloseOutlined />}
-          type="text"
-          onClick={() => setSidebarOpen(false)}
-        />
-      </Flex>
-      <Collapse items={sidebarItems} defaultActiveKey={['1']} ghost />
+        <Flex
+          align="center"
+          justify="space-between"
+          style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0' }}
+        >
+          <Input
+            placeholder="Search messages..."
+            prefix={<SearchOutlined />}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <Button
+            icon={<CloseOutlined />}
+            type="text"
+            onClick={() => setSidebarOpen(false)}
+          />
+        </Flex>
+        <Collapse items={sidebarItems} defaultActiveKey={['1', '2']} ghost />
+      </Drawer>
     </>
   );
 
@@ -347,8 +352,12 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
           </Flex>
         ) : (
           <Space>
-            <Tooltip title="Call">
-              <Button shape="circle" icon={<PhoneOutlined />} />
+            <Tooltip title="Starred Messages">
+               <Button
+                shape="circle"
+                icon={<StarOutlined />}
+                onClick={() => setSidebarOpen(true)}
+              />
             </Tooltip>
             <Tooltip title="Search">
               <Button
@@ -470,33 +479,6 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
         }}
       >
         <Flex align="center" gap="small">
-          <Popover
-            content={<Picker onEmojiClick={handleEmojiClick} />}
-            trigger="click"
-            open={isEmojiPickerOpen}
-            onOpenChange={setEmojiPickerOpen}
-            placement="topLeft"
-          >
-            <Button shape="circle" icon={<SmileOutlined />} />
-          </Popover>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            style={{ display: 'none' }}
-            disabled={!connected}
-          />
-          <Button
-            shape="circle"
-            icon={<PaperClipOutlined />}
-            onClick={() => fileInputRef.current?.click()}
-            disabled={!connected}
-          />
-
-          <Dropdown menu={moreOptionsMenu} placement="topRight" trigger={['click']}>
-            <Button shape="circle" icon={<MoreOutlined />} />
-          </Dropdown>
-
           <TextArea
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
@@ -517,34 +499,44 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
               boxShadow: 'none',
             }}
           />
-
-          <Button
-            type="primary"
-            shape="circle"
-            icon={<SendOutlined />}
-            onClick={handleSendMessage}
-            disabled={!inputValue.trim() || !connected}
-          />
+          <Space>
+             <Popover
+                content={<Picker onEmojiClick={handleEmojiClick} />}
+                trigger="click"
+                open={isEmojiPickerOpen}
+                onOpenChange={setEmojiPickerOpen}
+                placement="topLeft"
+              >
+              <Button shape="circle" icon={<SmileOutlined />} />
+            </Popover>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              style={{ display: 'none' }}
+              disabled={!connected}
+            />
+            <Button
+              shape="circle"
+              icon={<PaperClipOutlined />}
+              onClick={() => fileInputRef.current?.click()}
+              disabled={!connected}
+            />
+            <Dropdown menu={moreOptionsMenu} placement="topRight" trigger={['click']}>
+              <Button shape="circle" icon={<MoreOutlined />} />
+            </Dropdown>
+            <Button
+              type="primary"
+              shape="circle"
+              icon={<SendOutlined />}
+              onClick={handleSendMessage}
+              disabled={!inputValue.trim() || !connected}
+            />
+          </Space>
         </Flex>
       </Footer>
 
-      <Drawer
-        title={<div className="sr-only">Details</div>}
-        placement="right"
-        onClose={() => setSidebarOpen(false)}
-        open={isSidebarOpen}
-        width={350}
-        styles={{ body: { padding: 0 } }}
-        extra={
-            <Button
-              icon={<CloseOutlined />}
-              type="text"
-              onClick={() => setSidebarOpen(false)}
-            />
-        }
-      >
-        {sidebarContent}
-      </Drawer>
+      {sidebarContent}
     </Layout>
   );
 }
