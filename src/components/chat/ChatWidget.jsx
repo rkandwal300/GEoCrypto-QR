@@ -245,7 +245,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
         <Flex
           align="center"
           justify="space-between"
-          style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0' }}
+          style={{ padding: '12px 16px', borderBottom: '1px solid var(--ant-color-border-secondary)' }}
         >
           <Input
             placeholder="Search messages..."
@@ -264,10 +264,10 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
     </>
   );
 
-  const renderMessageContent = (item) => {
+  const renderMessageContent = (item, isSent) => {
     switch (item.type) {
       case 'text':
-        return <p style={{ margin: 0 }}>{item.text}</p>;
+        return <p style={{ margin: 0, color: isSent ? 'var(--ant-color-primary-text-active)' : 'var(--ant-color-text)' }}>{item.text}</p>;
       case 'file':
         return (
           <a
@@ -287,7 +287,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
                     <PushpinOutlined />
                     <span style={{fontWeight: 500}}>Location Shared</span>
                  </div>
-                <div style={{aspectRatio: '16/9', width: '100%', borderRadius: 8, overflow: 'hidden', border: '1px solid #e0e0e0'}}>
+                <div style={{aspectRatio: '16/9', width: '100%', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--ant-color-border)'}}>
                 <iframe
                     width="100%"
                     height="100%"
@@ -313,8 +313,8 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '0 16px',
-          borderBottom: '1px solid #f0f0f0',
-          background: '#fff',
+          borderBottom: '1px solid var(--ant-color-border-secondary)',
+          background: 'var(--ant-color-bg-container)',
           height: '64px',
         }}
       >
@@ -373,12 +373,14 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
           </Space>
         )}
       </Header>
-      <Content style={{ flex: 1, overflow: 'auto', padding: '16px 0' }} ref={contentRef}>
+      <Content style={{ flex: 1, overflow: 'auto', padding: '16px 0', background: 'var(--ant-color-bg-layout)' }} ref={contentRef}>
           <List
             split={false}
             dataSource={filteredMessages}
             renderItem={(item) => {
               const isSent = item.senderId === userId;
+              const isText = item.type === 'text';
+
               return (
                 <List.Item
                   ref={(el) => (messageRefs.current[item.id] = el)}
@@ -398,13 +400,15 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
                       <div
                         className="message-bubble"
                         style={{
+                          background: isSent ? (isText ? 'var(--ant-color-primary)' : 'var(--ant-color-bg-container)') : 'var(--ant-color-fill-secondary)',
                           padding: '8px 12px',
                           borderRadius: '18px',
                           borderBottomLeftRadius: isSent ? '18px' : '4px',
                           borderBottomRightRadius: isSent ? '4px' : '18px',
+                          color: isSent ? (isText ? 'var(--ant-color-primary-text-active)' : 'var(--ant-color-text)') : 'var(--ant-color-text)',
                         }}
                       >
-                       {renderMessageContent(item)}
+                       {renderMessageContent(item, isSent)}
                         <Flex
                           justify="flex-end"
                           align="center"
@@ -417,6 +421,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
                             <Text
                               style={{
                                 fontSize: '10px',
+                                color: isSent ? 'var(--ant-color-primary-text-active)' : 'var(--ant-color-text-secondary)'
                               }}
                             >
                               {formatDistanceToNow(new Date(item.timestamp), {
@@ -433,7 +438,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
                                 starredMessages.has(item.id) ? (
                                   <StarFilled style={{ color: '#ffc107' }} />
                                 ) : (
-                                  <StarOutlined />
+                                  <StarOutlined style={{ color: isSent ? 'var(--ant-color-primary-text-active)' : 'var(--ant-color-text-secondary)' }} />
                                 )
                               }
                               onClick={() => toggleStar(item.id)}
@@ -451,7 +456,8 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
       <Footer
         style={{
           padding: '12px 16px',
-          borderTop: '1px solid #f0f0f0',
+          borderTop: '1px solid var(--ant-color-border-secondary)',
+          background: 'var(--ant-color-bg-container)',
         }}
       >
         <Flex align="center" gap="small">
@@ -472,6 +478,8 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
               flex: 1,
               border: 'none',
               boxShadow: 'none',
+              background: 'transparent',
+              resize: 'none'
             }}
           />
           <Space>
