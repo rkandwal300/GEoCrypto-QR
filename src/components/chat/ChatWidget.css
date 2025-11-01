@@ -6,8 +6,6 @@
   width: 100%;
   background: hsl(var(--background));
   overflow: hidden;
-  border-radius: var(--radius);
-  border: 1px solid hsl(var(--border));
 }
 
 .chat-header {
@@ -141,11 +139,4 @@
   border-top: 1px solid hsl(var(--border));
   gap: 8px;
   flex-shrink: 0;
-}
-
-@media (max-width: 768px) {
-  .chat-widget {
-    border-left: none;
-    border-radius: 0;
-  }
 }
