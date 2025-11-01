@@ -146,6 +146,49 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
     ]
   };
 
+  const sidebarItems = [
+    {
+      key: '1',
+      label: 'Starred Messages',
+      children: starredMessagesDetails.length > 0 ? (
+        <List
+          itemLayout="horizontal"
+          dataSource={starredMessagesDetails}
+          renderItem={(item) => (
+            <List.Item onClick={() => scrollToMessage(item.id)} style={{ cursor: 'pointer', padding: '8px 16px' }}>
+              <List.Item.Meta
+                title={peopleInChat.find((p) => p.id === item.senderId)?.name || item.senderId}
+                description={<Text ellipsis>{item.text}</Text>}
+              />
+              <Text type="secondary" style={{ fontSize: '12px' }}>{new Date(item.timestamp).toLocaleDateString()}</Text>
+            </List.Item>
+          )}
+        />
+      ) : (
+        <Text type="secondary" style={{ display: 'block', textAlign: 'center', padding: '20px' }}>
+          No starred messages found
+        </Text>
+      ),
+    },
+    {
+      key: '2',
+      label: 'People',
+      children: (
+        <List
+          dataSource={peopleInChat}
+          renderItem={(person) => (
+            <List.Item style={{ padding: '8px 16px' }}>
+              <List.Item.Meta
+                avatar={<Avatar src={person.avatar} />}
+                title={person.name}
+              />
+            </List.Item>
+          )}
+        />
+      ),
+    },
+  ];
+
 
   const sidebarContent = (
     <>
@@ -158,42 +201,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
         />
         <Button icon={<CloseOutlined />} type="text" onClick={() => setSidebarOpen(false)} />
       </Flex>
-      <Collapse defaultActiveKey={['1', '2']} ghost>
-        <Collapse.Panel header="Starred Messages" key="1">
-          {starredMessagesDetails.length > 0 ? (
-            <List
-              itemLayout="horizontal"
-              dataSource={starredMessagesDetails}
-              renderItem={(item) => (
-                <List.Item onClick={() => scrollToMessage(item.id)} style={{ cursor: 'pointer', padding: '8px 16px' }}>
-                  <List.Item.Meta
-                    title={peopleInChat.find((p) => p.id === item.senderId)?.name || item.senderId}
-                    description={<Text ellipsis>{item.text}</Text>}
-                  />
-                  <Text type="secondary" style={{ fontSize: '12px' }}>{new Date(item.timestamp).toLocaleDateString()}</Text>
-                </List.Item>
-              )}
-            />
-          ) : (
-            <Text type="secondary" style={{ display: 'block', textAlign: 'center', padding: '20px' }}>
-              No starred messages found
-            </Text>
-          )}
-        </Collapse.Panel>
-        <Collapse.Panel header="People" key="2">
-          <List
-            dataSource={peopleInChat}
-            renderItem={(person) => (
-              <List.Item style={{ padding: '8px 16px' }}>
-                <List.Item.Meta
-                  avatar={<Avatar src={person.avatar} />}
-                  title={person.name}
-                />
-              </List.Item>
-            )}
-          />
-        </Collapse.Panel>
-      </Collapse>
+      <Collapse items={sidebarItems} defaultActiveKey={['1']} ghost />
     </>
   );
 
