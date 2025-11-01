@@ -46,6 +46,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
   const [isStarredSheetOpen, setStarredSheetOpen] = useState(false);
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [peopleSearchQuery, setPeopleSearchQuery] = useState('');
   const [starredMessages, setStarredMessages] = useState(new Set());
   const [hoveredMessageId, setHoveredMessageId] = useState(null);
 
@@ -66,6 +67,17 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
   const starredMessagesDetails = Array.from(starredMessages)
     .map((id) => messages.find((msg) => msg.id === id))
     .filter(Boolean);
+    
+  const peopleInChat = [
+    { id: 'user1', name: 'You', avatar: 'https://i.pravatar.cc/150?u=user1' },
+    { id: 'user2', name: 'Alice', avatar: 'https://i.pravatar.cc/150?u=user2' },
+    { id: 'user3', name: 'Bob', avatar: 'https://i.pravatar.cc/150?u=user3' },
+  ];
+
+  const filteredPeople = peopleInChat.filter((person) => 
+    person.name.toLowerCase().includes(peopleSearchQuery.toLowerCase())
+  );
+
 
   // Scroll to the bottom of the message list whenever new messages are added
   useEffect(() => {
@@ -133,12 +145,6 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
     { icon: Phone, tooltip: 'Call', onClick: () => {} },
     { icon: Star, tooltip: 'Starred Messages', onClick: () => setStarredSheetOpen(true) },
     { icon: Search, tooltip: 'Search', onClick: () => setIsSearchVisible(true) },
-  ];
-  
-  const peopleInChat = [
-    { id: 'user1', name: 'You', avatar: 'https://i.pravatar.cc/150?u=user1' },
-    { id: 'user2', name: 'Alice', avatar: 'https://i.pravatar.cc/150?u=user2' },
-    { id: 'user3', name: 'Bob', avatar: 'https://i.pravatar.cc/150?u=user3' },
   ];
 
 
@@ -326,13 +332,18 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
                 <SheetTitle>People</SheetTitle>
                 <div className="relative mt-2">
                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                     <Input placeholder="Search people..." className="pl-9"/>
+                     <Input 
+                        placeholder="Search people..." 
+                        className="pl-9"
+                        value={peopleSearchQuery}
+                        onChange={(e) => setPeopleSearchQuery(e.target.value)}
+                      />
                 </div>
             </SheetHeader>
             <ScrollArea className="flex-1">
               <div className="p-4 space-y-2">
                   <h3 className="font-semibold text-lg px-2">People</h3>
-                  {peopleInChat.map((person) => (
+                  {filteredPeople.map((person) => (
                     <div key={person.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted">
                         <Avatar>
                             <AvatarImage src={person.avatar} alt={person.name} />
@@ -382,3 +393,5 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
     </TooltipProvider>
   );
 }
+
+    
