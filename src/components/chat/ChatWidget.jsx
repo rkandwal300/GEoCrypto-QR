@@ -306,15 +306,15 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
   }
 
   return (
-    <Layout style={{ height: '100%', background: 'var(--ant-color-bg-container)' }}>
+    <Layout style={{ height: '100%' }}>
       <Header
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '0 16px',
-          borderBottom: '1px solid var(--ant-color-border-secondary)',
-          background: 'var(--ant-color-bg-elevated)',
+          borderBottom: '1px solid #f0f0f0',
+          background: '#fff',
           height: '64px',
         }}
       >
@@ -373,7 +373,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
           </Space>
         )}
       </Header>
-      <Content style={{ flex: 1, overflow: 'auto', padding: '16px 0', background: 'var(--ant-color-bg-layout)' }} ref={contentRef}>
+      <Content style={{ flex: 1, overflow: 'auto', padding: '16px 0' }} ref={contentRef}>
           <List
             split={false}
             dataSource={filteredMessages}
@@ -398,12 +398,6 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
                       <div
                         className="message-bubble"
                         style={{
-                          background: isSent
-                            ? 'var(--ant-color-primary)'
-                            : 'var(--ant-color-bg-elevated)',
-                          color: isSent
-                            ? 'var(--ant-color-primary-text)'
-                            : 'var(--ant-color-text)',
                           padding: '8px 12px',
                           borderRadius: '18px',
                           borderBottomLeftRadius: isSent ? '18px' : '4px',
@@ -423,7 +417,6 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
                             <Text
                               style={{
                                 fontSize: '10px',
-                                color: isSent ? 'rgba(255, 255, 255, 0.7)' : 'var(--ant-color-text-secondary)',
                               }}
                             >
                               {formatDistanceToNow(new Date(item.timestamp), {
@@ -444,9 +437,6 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
                                 )
                               }
                               onClick={() => toggleStar(item.id)}
-                              style={{
-                                color: isSent ? 'rgba(255, 255, 255, 0.7)' : 'var(--ant-color-text-secondary)',
-                              }}
                             />
                           </Tooltip>
                         </Flex>
@@ -461,8 +451,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
       <Footer
         style={{
           padding: '12px 16px',
-          borderTop: '1px solid var(--ant-color-border-secondary)',
-          background: 'var(--ant-color-bg-elevated)',
+          borderTop: '1px solid #f0f0f0',
         }}
       >
         <Flex align="center" gap="small">
@@ -481,7 +470,6 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
             autoFocus
             style={{
               flex: 1,
-              background: 'var(--ant-color-bg-layout)',
               border: 'none',
               boxShadow: 'none',
             }}
