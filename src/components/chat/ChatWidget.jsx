@@ -50,6 +50,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import Picker from 'emoji-picker-react';
 
 
 /**
@@ -92,9 +93,6 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
     { id: 'user3', name: 'Bob', avatar: 'https://i.pravatar.cc/150?u=user3' },
   ];
 
-  const emojis = ['😀', '😂', '😍', '🤔', '👍', '❤️', '🎉', '🔥', '🙏', '💯'];
-
-
   // Scroll to the bottom of the message list whenever new messages are added
   useEffect(() => {
     if (scrollAreaRef.current && !searchQuery) {
@@ -118,8 +116,8 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
     }
   };
 
-  const handleEmojiClick = (emoji) => {
-    setInputValue((prev) => prev + emoji);
+  const handleEmojiClick = (emojiObject) => {
+    setInputValue((prev) => prev + emojiObject.emoji);
   };
 
   // Handler for file uploads
@@ -311,19 +309,8 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
                         </TooltipTrigger>
                         <TooltipContent><p>Emoji</p></TooltipContent>
                     </Tooltip>
-                    <PopoverContent className="w-auto p-2">
-                        <div className="grid grid-cols-5 gap-2">
-                            {emojis.map((emoji) => (
-                                <Button
-                                    key={emoji}
-                                    variant="ghost"
-                                    className="text-xl p-0 h-9 w-9"
-                                    onClick={() => handleEmojiClick(emoji)}
-                                >
-                                    {emoji}
-                                </Button>
-                            ))}
-                        </div>
+                    <PopoverContent className="p-0 border-none">
+                        <Picker onEmojiClick={handleEmojiClick} />
                     </PopoverContent>
                 </Popover>
 
@@ -469,5 +456,3 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
     </TooltipProvider>
   );
 }
-
-    
