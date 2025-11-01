@@ -4,9 +4,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { List, Avatar, Input, Button, Upload, Badge } from 'antd';
 import {
-  PaperClipOutlined,
-  SendOutlined,
-  UserOutlined,
+  Paperclip,
+  Send,
+  User,
   Phone,
   Star,
   Search,
@@ -126,7 +126,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
         <header className="chat-header">
           <div className="chat-header-info">
             <Badge status={connected ? 'success' : 'error'} offset={[-5, 25]} dot>
-              <Avatar icon={<UserOutlined />} />
+              <Avatar icon={<User />} />
             </Badge>
             <div>
               <h3 className="chat-title">{title}</h3>
@@ -180,7 +180,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      <PaperClipOutlined /> {item.file.name}
+                      <Paperclip /> {item.file.name}
                     </a>
                   )}
                   <div className="message-timestamp">
@@ -213,11 +213,11 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
             disabled={!connected}
           />
           <Upload {...uploadProps} disabled={!connected}>
-            <Button icon={<PaperClipOutlined />} disabled={!connected} />
+            <Button icon={<Paperclip />} disabled={!connected} />
           </Upload>
           <Button
             type="primary"
-            icon={<SendOutlined />}
+            icon={<Send />}
             onClick={handleSendMessage}
             disabled={!inputValue.trim() || !connected}
           />
@@ -252,5 +252,3 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
     </TooltipProvider>
   );
 }
-
-    
