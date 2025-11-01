@@ -2,11 +2,28 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { List, Avatar, Input, Button, Upload, Badge, Tooltip } from 'antd';
-import { PaperClipOutlined, SendOutlined, UserOutlined } from '@ant-design/icons';
+import { List, Avatar, Input, Button, Upload, Badge } from 'antd';
+import {
+  PaperClipOutlined,
+  SendOutlined,
+  UserOutlined,
+  Phone,
+  Star,
+  Search,
+  Users,
+  X,
+} from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useChatSocket } from '../../hooks/useChatSocket';
 import './ChatWidget.css';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Separator } from '../ui/separator';
 
 // Mock function for file uploads when using mock server
 const mockRequest = ({ onSuccess }) => {
@@ -25,6 +42,7 @@ const mockRequest = ({ onSuccess }) => {
  */
 export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
   const [inputValue, setInputValue] = useState('');
+  const [isPeopleSidebarOpen, setPeopleSidebarOpen] = useState(false);
   const listRef = useRef(null);
 
   const { messages, sendMessage, connected } = useChatSocket({
@@ -56,10 +74,10 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
   // Handler for file uploads
   const handleUploadChange = (info) => {
     if (info.file.status === 'done') {
-      // In a real app, the server would return the file URL.
-      // For mock, we'll just pretend it's a path.
       const isMock = process.env.NEXT_PUBLIC_USE_MOCK === 'true';
-      const fileUrl = isMock ? `/uploads/${info.file.name}` : info.file.response.url;
+      const fileUrl = isMock
+        ? `/uploads/${info.file.name}`
+        : info.file.response.url;
 
       const message = {
         file: {
@@ -78,86 +96,161 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
 
   const uploadProps = {
     name: 'file',
-    action: process.env.NEXT_PUBLIC_USE_MOCK === 'true'
-      ? undefined // No action for mock, we use customRequest
-      : `${process.env.NEXT_PUBLIC_API_URL}/upload`,
-    customRequest: process.env.NEXT_PUBLIC_USE_MOCK === 'true' ? mockRequest : undefined,
-    headers: {
-      // Example of how you might pass auth for a real upload endpoint
-      // authorization: `Bearer ${your_auth_token}`,
-    },
-    showUploadList: false, // We display the file in the message list itself
+    action:
+      process.env.NEXT_PUBLIC_USE_MOCK === 'true'
+        ? undefined
+        : `${process.env.NEXT_PUBLIC_API_URL}/upload`,
+    customRequest:
+      process.env.NEXT_PUBLIC_USE_MOCK === 'true' ? mockRequest : undefined,
+    headers: {},
+    showUploadList: false,
     onChange: handleUploadChange,
   };
+  
+  const headerActions = [
+    { icon: Phone, tooltip: 'Call' },
+    { icon: Star, tooltip: 'Starred Messages' },
+    { icon: Search, tooltip: 'Search' },
+  ];
+  
+  const peopleInChat = [
+    { id: 'user1', name: 'You', avatar: 'https://i.pravatar.cc/150?u=user1' },
+    { id: 'user2', name: 'Alice', avatar: 'https://i.pravatar.cc/150?u=user2' },
+    { id: 'user3', name: 'Bob', avatar: 'https://i.pravatar.cc/150?u=user3' },
+  ];
+
 
   return (
-    <div className="chat-widget">
-      <header className="chat-header">
-        <div className="chat-header-info">
-          <Badge
-            status={connected ? 'success' : 'error'}
-            offset={[-5, 25]}
-            dot
-          >
-            <Avatar icon={<UserOutlined />} />
-          </Badge>
-          <h3 className="chat-title">{title}</h3>
-        </div>
-        <span className="chat-status">{connected ? 'Online' : 'Offline'}</span>
-      </header>
+    <TooltipProvider>
+      <div className="chat-widget">
+        <header className="chat-header">
+          <div className="chat-header-info">
+            <Badge status={connected ? 'success' : 'error'} offset={[-5, 25]} dot>
+              <Avatar icon={<UserOutlined />} />
+            </Badge>
+            <div>
+              <h3 className="chat-title">{title}</h3>
+              <span className="chat-status">
+                {connected ? 'Online' : 'Offline'}
+              </span>
+            </div>
+          </div>
+          <div className="chat-header-actions">
+            {headerActions.map((action, index) => (
+              <Tooltip key={index}>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <action.icon className="h-5 w-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{action.tooltip}</p>
+                </TooltipContent>
+              </Tooltip>
+            ))}
+             <Separator orientation="vertical" className="h-6 mx-2" />
+             <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPeopleSidebarOpen(true)}>
+                        <Users className="h-5 w-5" />
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p>People</p>
+                </TooltipContent>
+            </Tooltip>
+          </div>
+        </header>
 
-      <div className="chat-messages-container" ref={listRef}>
-        <List
-          dataSource={messages}
-          renderItem={(item) => (
-            <List.Item
-              key={item.id}
-              className={`chat-message ${
-                item.senderId === userId ? 'sent' : 'received'
-              }`}
-            >
-              <div className="message-content">
-                {item.type === 'text' && <p>{item.text}</p>}
-                {item.type === 'file' && (
-                  <a href={item.file.url} target="_blank" rel="noopener noreferrer">
-                    <PaperClipOutlined /> {item.file.name}
-                  </a>
-                )}
-                <Tooltip title={new Date(item.timestamp).toLocaleString()}>
+        <div className="chat-messages-container" ref={listRef}>
+          <List
+            dataSource={messages}
+            renderItem={(item) => (
+              <List.Item
+                key={item.id}
+                className={`chat-message ${
+                  item.senderId === userId ? 'sent' : 'received'
+                }`}
+              >
+                <div className="message-content">
+                  {item.type === 'text' && <p>{item.text}</p>}
+                  {item.type === 'file' && (
+                    <a
+                      href={item.file.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <PaperClipOutlined /> {item.file.name}
+                    </a>
+                  )}
                   <div className="message-timestamp">
-                    {formatDistanceToNow(new Date(item.timestamp), { addSuffix: true })}
+                    <Tooltip title={new Date(item.timestamp).toLocaleString()}>
+                      <span>
+                        {formatDistanceToNow(new Date(item.timestamp), {
+                          addSuffix: true,
+                        })}
+                      </span>
+                    </Tooltip>
                   </div>
-                </Tooltip>
-              </div>
-            </List.Item>
-          )}
-        />
-      </div>
+                </div>
+              </List.Item>
+            )}
+          />
+        </div>
 
-      <footer className="chat-footer">
-        <Input.TextArea
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onPressEnter={(e) => {
-            if (!e.shiftKey) {
-              e.preventDefault();
-              handleSendMessage();
-            }
-          }}
-          placeholder="Type a message..."
-          autoSize={{ minRows: 1, maxRows: 4 }}
-          disabled={!connected}
-        />
-        <Upload {...uploadProps} disabled={!connected}>
-          <Button icon={<PaperClipOutlined />} disabled={!connected} />
-        </Upload>
-        <Button
-          type="primary"
-          icon={<SendOutlined />}
-          onClick={handleSendMessage}
-          disabled={!inputValue.trim() || !connected}
-        />
-      </footer>
-    </div>
+        <footer className="chat-footer">
+          <Input.TextArea
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onPressEnter={(e) => {
+              if (!e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+              }
+            }}
+            placeholder="Type a message..."
+            autoSize={{ minRows: 1, maxRows: 4 }}
+            disabled={!connected}
+          />
+          <Upload {...uploadProps} disabled={!connected}>
+            <Button icon={<PaperClipOutlined />} disabled={!connected} />
+          </Upload>
+          <Button
+            type="primary"
+            icon={<SendOutlined />}
+            onClick={handleSendMessage}
+            disabled={!inputValue.trim() || !connected}
+          />
+        </footer>
+
+        <Sheet open={isPeopleSidebarOpen} onOpenChange={setPeopleSidebarOpen}>
+          <SheetContent className="w-[350px] sm:w-[400px] p-0 flex flex-col">
+            <div className="p-4 border-b">
+                <div className="relative">
+                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                     <Input placeholder="Search messages..." className="pl-9"/>
+                </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                <h3 className="font-semibold text-lg">People</h3>
+                 <List
+                    dataSource={peopleInChat}
+                    renderItem={(person) => (
+                        <List.Item className='border-none p-0'>
+                            <div className="flex items-center gap-3 py-2">
+                                <Avatar src={person.avatar}><span className="font-bold">P</span></Avatar>
+                                <span className="font-medium">{person.name}</span>
+                            </div>
+                        </List.Item>
+                    )}
+                 />
+
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+    </TooltipProvider>
   );
 }
+
+    
