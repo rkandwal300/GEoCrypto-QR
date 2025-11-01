@@ -25,11 +25,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from '@/components/ui/sheet';
 import { Separator } from '../ui/separator';
 import { ScrollArea } from '../ui/scroll-area';
 import { Textarea } from '../ui/textarea';
 import { cn } from '@/lib/utils';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 
 /**
@@ -42,12 +48,10 @@ import { cn } from '@/lib/utils';
  */
 export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
   const [inputValue, setInputValue] = useState('');
-  const [isPeopleSidebarOpen, setPeopleSidebarOpen] = useState(false);
-  const [isStarredSheetOpen, setStarredSheetOpen] = useState(false);
+  const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [starredMessages, setStarredMessages] = useState(new Set());
-  const [hoveredMessageId, setHoveredMessageId] = useState(null);
 
   const scrollAreaRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -65,7 +69,8 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
 
   const starredMessagesDetails = Array.from(starredMessages)
     .map((id) => messages.find((msg) => msg.id === id))
-    .filter(Boolean);
+    .filter(Boolean)
+    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
     
   const peopleInChat = [
     { id: 'user1', name: 'You', avatar: 'https://i.pravatar.cc/150?u=user1' },
@@ -132,14 +137,11 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
       behavior: 'smooth',
       block: 'center',
     });
-    setStarredSheetOpen(false);
-    // Also close the people sidebar if it's open
-    setPeopleSidebarOpen(false);
+    setSidebarOpen(false);
   };
 
   const headerActions = [
     { icon: Phone, tooltip: 'Call', onClick: () => {} },
-    { icon: Star, tooltip: 'Starred Messages', onClick: () => setStarredSheetOpen(true) },
     { icon: Search, tooltip: 'Search', onClick: () => setIsSearchVisible(true) },
   ];
 
@@ -202,7 +204,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
               <Separator orientation="vertical" className="h-6 mx-2" />
               <Tooltip>
                   <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPeopleSidebarOpen(true)}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSidebarOpen(true)}>
                           <Users className="h-5 w-5" />
                       </Button>
                   </TooltipTrigger>
@@ -220,8 +222,6 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
               <div
                 key={item.id}
                 ref={(el) => (messageRefs.current[item.id] = el)}
-                onMouseEnter={() => setHoveredMessageId(item.id)}
-                onMouseLeave={() => setHoveredMessageId(null)}
                 className={`chat-message-wrapper`}
               >
                 <div className={`chat-message ${item.senderId === userId ? 'sent' : 'received'}`}>
@@ -322,72 +322,75 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
           </Button>
         </footer>
 
-        <Sheet open={isPeopleSidebarOpen} onOpenChange={setPeopleSidebarOpen}>
-          <SheetContent className="w-[350px] sm:w-[400px] p-0 flex flex-col">
-            <SheetHeader className="p-4 border-b">
-                <SheetTitle>People</SheetTitle>
-                <div className="relative mt-2">
-                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                     <Input 
-                        placeholder="Search messages..." 
-                        className="pl-9"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                      />
-                </div>
-            </SheetHeader>
-            <ScrollArea className="flex-1">
-              <div className="p-4 space-y-2">
-                  <h3 className="font-semibold text-lg px-2">People in Chat</h3>
-                  {peopleInChat.map((person) => (
-                    <div key={person.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted">
-                        <Avatar>
-                            <AvatarImage src={person.avatar} alt={person.name} />
-                            <AvatarFallback>{person.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <span className="font-medium">{person.name}</span>
+        <Sheet open={isSidebarOpen} onOpenChange={setSidebarOpen}>
+            <SheetContent className="w-[350px] sm:w-[400px] p-0 flex flex-col">
+              <SheetHeader className="p-4 border-b">
+                 <div className="flex items-center gap-4">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                            placeholder="Search messages..." 
+                            className="pl-9"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
                     </div>
-                  ))}
-              </div>
-            </ScrollArea>
-          </SheetContent>
-        </Sheet>
-
-        <Sheet open={isStarredSheetOpen} onOpenChange={setStarredSheetOpen}>
-          <SheetContent className="w-[350px] sm:w-[400px] p-0 flex flex-col">
-            <SheetHeader className="p-4 border-b text-left">
-              <SheetTitle>Starred Messages</SheetTitle>
-            </SheetHeader>
-_start
-            <ScrollArea className="flex-1">
-              <div className="p-2">
-                {starredMessagesDetails.length > 0 ? (
-                  starredMessagesDetails.map((msg) => (
-                    <button
-                      key={msg.id}
-                      onClick={() => scrollToMessage(msg.id)}
-                      className="block w-full text-left p-3 rounded-md hover:bg-muted"
-                    >
-                      <p className="font-semibold">{peopleInChat.find(p => p.id === msg.senderId)?.name || msg.senderId}</p>
-                      <p className="text-sm text-muted-foreground truncate">{msg.text}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(msg.timestamp).toLocaleDateString()}
-                      </p>
-                    </button>
-                  ))
-                ) : (
-                  <div className="text-center text-muted-foreground p-8">
-                    <Star className="mx-auto h-8 w-8 mb-2" />
-                    <p>No starred messages</p>
-                    <p className="text-xs mt-1">Star messages to easily find them later.</p>
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
-          </SheetContent>
+                    <SheetClose asChild>
+                      <Button variant="ghost" size="icon" className='shrink-0'>
+                        <X className="h-5 w-5" />
+                      </Button>
+                    </SheetClose>
+                 </div>
+              </SheetHeader>
+              <ScrollArea className="flex-1">
+                <Accordion type="multiple" defaultValue={['item-1', 'item-2']} className="w-full">
+                  <AccordionItem value="item-1">
+                    <AccordionTrigger className="px-4 font-semibold">Starred Messages</AccordionTrigger>
+                    <AccordionContent>
+                      <div className="p-2">
+                        {starredMessagesDetails.length > 0 ? (
+                          starredMessagesDetails.map((msg) => (
+                            <button
+                              key={msg.id}
+                              onClick={() => scrollToMessage(msg.id)}
+                              className="block w-full text-left p-3 rounded-md hover:bg-muted"
+                            >
+                              <p className="font-semibold">{peopleInChat.find(p => p.id === msg.senderId)?.name || msg.senderId}</p>
+                              <p className="text-sm text-muted-foreground truncate">{msg.text}</p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {new Date(msg.timestamp).toLocaleDateString()}
+                              </p>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="text-center text-muted-foreground p-4">
+                            <p>No starred messages found</p>
+                          </div>
+                        )}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="item-2">
+                    <AccordionTrigger className="px-4 font-semibold">People</AccordionTrigger>
+                    <AccordionContent>
+                      <div className="p-4 space-y-2">
+                        {peopleInChat.map((person) => (
+                          <div key={person.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted">
+                              <Avatar>
+                                  <AvatarImage src={person.avatar} alt={person.name} />
+                                  <AvatarFallback>{person.name.charAt(0)}</AvatarFallback>
+                              </Avatar>
+                              <span className="font-medium">{person.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </ScrollArea>
+            </SheetContent>
         </Sheet>
       </div>
     </TooltipProvider>
   );
 }
-
