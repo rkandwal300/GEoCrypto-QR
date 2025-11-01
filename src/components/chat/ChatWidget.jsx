@@ -178,7 +178,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
   const sidebarItems = [
     {
       key: '1',
-      label: <span style={{ fontWeight: 600 }}>Starred Messages</span>,
+      label: <Text strong>Starred Messages</Text>,
       children:
         starredMessagesDetails.length > 0 ? (
           <List
@@ -191,8 +191,10 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
               >
                 <List.Item.Meta
                   title={
-                    peopleInChat.find((p) => p.id === item.senderId)?.name ||
-                    item.senderId
+                    <Text strong>
+                      {peopleInChat.find((p) => p.id === item.senderId)?.name ||
+                        item.senderId}
+                    </Text>
                   }
                   description={<Text ellipsis>{item.text}</Text>}
                 />
@@ -213,7 +215,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
     },
     {
       key: '2',
-      label: <span style={{ fontWeight: 600 }}>People</span>,
+      label: <Text strong>People</Text>,
       children: (
         <List
           dataSource={peopleInChat}
