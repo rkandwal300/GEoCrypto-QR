@@ -135,9 +135,37 @@
 
 .chat-footer {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   padding: 8px 12px;
   border-top: 1px solid hsl(var(--border));
   gap: 8px;
   flex-shrink: 0;
+  background-color: hsl(var(--background));
+}
+
+.chat-input-wrapper {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    border-radius: 9999px;
+    background-color: hsl(var(--muted));
+    padding: 4px;
+}
+
+.chat-input-wrapper .textarea {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    resize: none;
+    flex-grow: 1;
+    min-height: 2.5rem; /* Same as button height */
+    padding: 0.5rem 0.75rem;
+    align-self: center;
+}
+
+.chat-input-wrapper .textarea:focus {
+    box-shadow: none;
+    outline: none;
+    ring-offset-width: 0;
+    ring-width: 0;
 }

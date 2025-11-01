@@ -11,6 +11,9 @@ import {
   Search,
   Users,
   X,
+  Smile,
+  MoreHorizontal,
+  MapPin,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useChatSocket } from '../../hooks/useChatSocket';
@@ -21,6 +24,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+  } from "@/components/ui/dropdown-menu"
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -279,48 +288,83 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
         </ScrollArea>
 
         <footer className="chat-footer">
-           <Textarea
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage();
-              }
-            }}
-            placeholder="Type a message..."
-            rows={1}
-            className="resize-none max-h-24"
-            disabled={!connected}
-          />
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={handleFileUpload} 
-            className="hidden" 
-            disabled={!connected}
-          />
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => fileInputRef.current?.click()}
-                disabled={!connected}
-              >
-                <Paperclip className="h-5 w-5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent><p>Attach file</p></TooltipContent>
-          </Tooltip>
-          <Button
-            onClick={handleSendMessage}
-            disabled={!inputValue.trim() || !connected}
-            size="icon"
-          >
-            <Send className="h-5 w-5" />
-            <span className="sr-only">Send</span>
-          </Button>
+            <div className="chat-input-wrapper">
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0">
+                            <Smile className="h-5 w-5" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Emoji</p></TooltipContent>
+                </Tooltip>
+
+                <Textarea
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSendMessage();
+                        }
+                    }}
+                    placeholder="Send a message..."
+                    className="textarea"
+                    rows={1}
+                    disabled={!connected}
+                    autoFocus
+                />
+
+                <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handleFileUpload} 
+                    className="hidden" 
+                    disabled={!connected}
+                />
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-10 w-10 shrink-0"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={!connected}
+                        >
+                            <Paperclip className="h-5 w-5" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Attach file</p></TooltipContent>
+                </Tooltip>
+
+                <DropdownMenu>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0">
+                                    <MoreHorizontal className="h-5 w-5" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent><p>More options</p></TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem>
+                            <MapPin className="mr-2 h-4 w-4" />
+                            <span>Send current location</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
+            
+            <Button
+                onClick={handleSendMessage}
+                disabled={!inputValue.trim() || !connected}
+                size="icon"
+                className="h-10 w-10 shrink-0 rounded-full"
+            >
+                <Send className="h-5 w-5" />
+                <span className="sr-only">Send</span>
+            </Button>
         </footer>
 
         <Sheet open={isSidebarOpen} onOpenChange={setSidebarOpen}>
@@ -396,5 +440,3 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
     </TooltipProvider>
   );
 }
-
-    
