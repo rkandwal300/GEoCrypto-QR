@@ -12,6 +12,7 @@ import {
   SmileOutlined,
   MoreOutlined,
   EnvironmentOutlined,
+  PushpinOutlined,
 } from '@ant-design/icons';
 import {
   Layout,
@@ -29,6 +30,7 @@ import {
   Collapse,
   Badge,
   Divider,
+  message,
 } from 'antd';
 import { formatDistanceToNow } from 'date-fns';
 import { useChatSocket } from '../../hooks/useChatSocket';
@@ -65,8 +67,11 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
     roomId,
   });
 
-  const filteredMessages = messages.filter((msg) =>
-    msg.text?.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredMessages = messages.filter(
+    (msg) =>
+      msg.text?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      msg.type === 'location' ||
+      msg.type === 'file'
   );
 
   const starredMessagesDetails = Array.from(starredMessages)
@@ -82,11 +87,13 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
 
   useEffect(() => {
     if (scrollAreaRef.current && !searchQuery) {
-        const scrollableViewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
-        if (scrollableViewport) {
-          scrollableViewport.scrollTop = scrollableViewport.scrollHeight;
-        }
+      const scrollableViewport = scrollAreaRef.current.querySelector(
+        '[data-radix-scroll-area-viewport]'
+      );
+      if (scrollableViewport) {
+        scrollableViewport.scrollTop = scrollableViewport.scrollHeight;
       }
+    }
   }, [messages, searchQuery]);
 
   const handleSendMessage = () => {
@@ -135,40 +142,81 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
     });
     setSidebarOpen(false);
   };
-  
+
+  const handleSendLocation = () => {
+    if (!navigator.geolocation) {
+      message.error('Geolocation is not supported by your browser.');
+      return;
+    }
+
+    message.loading({ content: 'Getting your location...', key: 'location' });
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        const locationMessage = {
+          type: 'location',
+          senderId: userId,
+          location: {
+            lat: latitude,
+            long: longitude,
+          },
+        };
+        sendMessage(locationMessage);
+        message.success({ content: 'Location sent!', key: 'location', duration: 2 });
+      },
+      (error) => {
+        message.error({ content: `Failed to get location: ${error.message}`, key: 'location', duration: 3 });
+      }
+    );
+  };
+
   const moreOptionsMenu = {
     items: [
       {
         key: 'location',
         icon: <EnvironmentOutlined />,
         label: 'Send current location',
+        onClick: handleSendLocation,
       },
-    ]
+    ],
   };
 
   const sidebarItems = [
     {
       key: '1',
       label: 'Starred Messages',
-      children: starredMessagesDetails.length > 0 ? (
-        <List
-          itemLayout="horizontal"
-          dataSource={starredMessagesDetails}
-          renderItem={(item) => (
-            <List.Item onClick={() => scrollToMessage(item.id)} style={{ cursor: 'pointer', padding: '8px 16px' }}>
-              <List.Item.Meta
-                title={peopleInChat.find((p) => p.id === item.senderId)?.name || item.senderId}
-                description={<Text ellipsis>{item.text}</Text>}
-              />
-              <Text type="secondary" style={{ fontSize: '12px' }}>{new Date(item.timestamp).toLocaleDateString()}</Text>
-            </List.Item>
-          )}
-        />
-      ) : (
-        <Text type="secondary" style={{ display: 'block', textAlign: 'center', padding: '20px' }}>
-          No starred messages found
-        </Text>
-      ),
+      children:
+        starredMessagesDetails.length > 0 ? (
+          <List
+            itemLayout="horizontal"
+            dataSource={starredMessagesDetails}
+            renderItem={(item) => (
+              <List.Item
+                onClick={() => scrollToMessage(item.id)}
+                style={{ cursor: 'pointer', padding: '8px 16px' }}
+              >
+                <List.Item.Meta
+                  title={
+                    peopleInChat.find((p) => p.id === item.senderId)?.name ||
+                    item.senderId
+                  }
+                  description={<Text ellipsis>{item.text}</Text>}
+                />
+                <Text type="secondary" style={{ fontSize: '12px' }}>
+                  {new Date(item.timestamp).toLocaleDateString()}
+                </Text>
+              </List.Item>
+            )}
+          />
+        ) : (
+          <Text
+            type="secondary"
+            style={{ display: 'block', textAlign: 'center', padding: '20px' }}
+          >
+            No starred messages found
+          </Text>
+        ),
     },
     {
       key: '2',
@@ -189,31 +237,94 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
     },
   ];
 
-
   const sidebarContent = (
     <>
-      <Flex align="center" justify="space-between" style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0' }}>
+      <div className="sr-only">
+        <Drawer title="Details" />
+      </div>
+      <Flex
+        align="center"
+        justify="space-between"
+        style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0' }}
+      >
         <Input
           placeholder="Search messages..."
           prefix={<SearchOutlined />}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
-        <Button icon={<CloseOutlined />} type="text" onClick={() => setSidebarOpen(false)} />
+        <Button
+          icon={<CloseOutlined />}
+          type="text"
+          onClick={() => setSidebarOpen(false)}
+        />
       </Flex>
       <Collapse items={sidebarItems} defaultActiveKey={['1']} ghost />
     </>
   );
 
+  const renderMessageContent = (item) => {
+    switch (item.type) {
+      case 'text':
+        return <p style={{ margin: 0 }}>{item.text}</p>;
+      case 'file':
+        return (
+          <a
+            href={item.file.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: 'inherit' }}
+          >
+            <PaperClipOutlined /> {item.file.name}
+          </a>
+        );
+      case 'location':
+        if (item.location) {
+          return (
+             <div style={{width: 250, display: 'flex', flexDirection: 'column', gap: 8}}>
+                 <div style={{display: 'flex', alignItems: 'center', gap: 8}}>
+                    <PushpinOutlined />
+                    <span style={{fontWeight: 500}}>Location Shared</span>
+                 </div>
+                <div style={{aspectRatio: '16/9', width: '100%', borderRadius: 8, overflow: 'hidden', border: '1px solid hsl(var(--border))'}}>
+                <iframe
+                    width="100%"
+                    height="100%"
+                    loading="lazy"
+                    allowFullScreen
+                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${item.location.long - 0.01}%2C${item.location.lat - 0.01}%2C${item.location.long + 0.01}%2C${item.location.lat + 0.01}&layer=mapnik&marker=${item.location.lat}%2C${item.location.long}`}
+                  ></iframe>
+                </div>
+             </div>
+          );
+        }
+        return 'Location data is missing.';
+      default:
+        return null;
+    }
+  }
+
   return (
     <Layout style={{ height: '100%', background: 'hsl(var(--background))' }}>
-      <Header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', borderBottom: '1px solid hsl(var(--border))', background: 'hsl(var(--background))', height: '64px' }}>
+      <Header
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 16px',
+          borderBottom: '1px solid hsl(var(--border))',
+          background: 'hsl(var(--background))',
+          height: '64px',
+        }}
+      >
         <Flex align="center" gap="middle">
           <Badge dot color={connected ? 'green' : 'red'} offset={[-4, 34]}>
             <Avatar size="large">{title.charAt(0)}</Avatar>
           </Badge>
           <Flex vertical>
-            <Title level={5} style={{ margin: 0 }}>{title}</Title>
+            <Title level={5} style={{ margin: 0 }}>
+              {title}
+            </Title>
             <Text type="secondary">{connected ? 'Online' : 'Offline'}</Text>
           </Flex>
         </Flex>
@@ -240,17 +351,28 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
               <Button shape="circle" icon={<PhoneOutlined />} />
             </Tooltip>
             <Tooltip title="Search">
-              <Button shape="circle" icon={<SearchOutlined />} onClick={() => setIsSearchVisible(true)} />
+              <Button
+                shape="circle"
+                icon={<SearchOutlined />}
+                onClick={() => setIsSearchVisible(true)}
+              />
             </Tooltip>
-            <Divider type="vertical" style={{height: '24px'}} />
+            <Divider type="vertical" style={{ height: '24px' }} />
             <Tooltip title="People">
-              <Button shape="circle" icon={<TeamOutlined />} onClick={() => setSidebarOpen(true)} />
+              <Button
+                shape="circle"
+                icon={<TeamOutlined />}
+                onClick={() => setSidebarOpen(true)}
+              />
             </Tooltip>
           </Space>
         )}
       </Header>
       <Content style={{ flex: 1, overflow: 'hidden' }}>
-        <ScrollArea className="chat-messages-container h-full" ref={scrollAreaRef}>
+        <ScrollArea
+          className="chat-messages-container h-full"
+          ref={scrollAreaRef}
+        >
           <List
             split={false}
             dataSource={filteredMessages}
@@ -263,33 +385,51 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
                     display: 'flex',
                     justifyContent: isSent ? 'flex-end' : 'flex-start',
                     padding: '0 16px 8px',
-                    border: 'none'
+                    border: 'none',
                   }}
                 >
-                  <div className="message-content-wrapper" style={{ maxWidth: '75%' }}>
+                  <div
+                    className="message-content-wrapper"
+                    style={{ maxWidth: '75%' }}
+                  >
                     <Flex gap="small" align="flex-end">
                       {!isSent && <Avatar size="small" />}
                       <div
                         className="message-bubble"
                         style={{
-                          background: isSent ? 'hsl(var(--primary))' : 'hsl(var(--muted))',
-                          color: isSent ? 'hsl(var(--primary-foreground))' : 'hsl(var(--foreground))',
+                          background: isSent
+                            ? 'hsl(var(--primary))'
+                            : 'hsl(var(--muted))',
+                          color: isSent
+                            ? 'hsl(var(--primary-foreground))'
+                            : 'hsl(var(--foreground))',
                           padding: '8px 12px',
                           borderRadius: '18px',
                           borderBottomLeftRadius: isSent ? '18px' : '4px',
                           borderBottomRightRadius: isSent ? '4px' : '18px',
                         }}
                       >
-                        {item.type === 'text' && <p style={{ margin: 0 }}>{item.text}</p>}
-                        {item.type === 'file' && (
-                          <a href={item.file.url} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>
-                            <PaperClipOutlined /> {item.file.name}
-                          </a>
-                        )}
-                        <Flex justify="flex-end" align="center" gap={4} style={{ marginTop: '4px' }}>
-                          <Tooltip title={new Date(item.timestamp).toLocaleString()}>
-                            <Text style={{ fontSize: '10px', color: isSent ? 'hsla(var(--primary-foreground), 0.7)' : 'hsl(var(--muted-foreground))' }}>
-                              {formatDistanceToNow(new Date(item.timestamp), { addSuffix: true })}
+                       {renderMessageContent(item)}
+                        <Flex
+                          justify="flex-end"
+                          align="center"
+                          gap={4}
+                          style={{ marginTop: '4px' }}
+                        >
+                          <Tooltip
+                            title={new Date(item.timestamp).toLocaleString()}
+                          >
+                            <Text
+                              style={{
+                                fontSize: '10px',
+                                color: isSent
+                                  ? 'hsla(var(--primary-foreground), 0.7)'
+                                  : 'hsl(var(--muted-foreground))',
+                              }}
+                            >
+                              {formatDistanceToNow(new Date(item.timestamp), {
+                                addSuffix: true,
+                              })}
                             </Text>
                           </Tooltip>
                           <Tooltip title="Star message">
@@ -297,9 +437,19 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
                               type="text"
                               size="small"
                               shape="circle"
-                              icon={starredMessages.has(item.id) ? <StarFilled style={{ color: '#ffc107' }} /> : <StarOutlined />}
+                              icon={
+                                starredMessages.has(item.id) ? (
+                                  <StarFilled style={{ color: '#ffc107' }} />
+                                ) : (
+                                  <StarOutlined />
+                                )
+                              }
                               onClick={() => toggleStar(item.id)}
-                              style={{ color: isSent ? 'hsla(var(--primary-foreground), 0.7)' : 'hsl(var(--muted-foreground))' }}
+                              style={{
+                                color: isSent
+                                  ? 'hsla(var(--primary-foreground), 0.7)'
+                                  : 'hsl(var(--muted-foreground))',
+                              }}
                             />
                           </Tooltip>
                         </Flex>
@@ -312,22 +462,39 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
           />
         </ScrollArea>
       </Content>
-      <Footer style={{ padding: '12px 16px', borderTop: '1px solid hsl(var(--border))', background: 'hsl(var(--background))' }}>
+      <Footer
+        style={{
+          padding: '12px 16px',
+          borderTop: '1px solid hsl(var(--border))',
+          background: 'hsl(var(--background))',
+        }}
+      >
         <Flex align="center" gap="small">
-          <Popover 
-            content={<Picker onEmojiClick={handleEmojiClick} />} 
-            trigger="click" 
+          <Popover
+            content={<Picker onEmojiClick={handleEmojiClick} />}
+            trigger="click"
             open={isEmojiPickerOpen}
             onOpenChange={setEmojiPickerOpen}
             placement="topLeft"
           >
             <Button shape="circle" icon={<SmileOutlined />} />
           </Popover>
-          <input type="file" ref={fileInputRef} onChange={handleFileUpload} style={{ display: 'none' }} disabled={!connected} />
-          <Button shape="circle" icon={<PaperClipOutlined />} onClick={() => fileInputRef.current?.click()} disabled={!connected} />
-          
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            style={{ display: 'none' }}
+            disabled={!connected}
+          />
+          <Button
+            shape="circle"
+            icon={<PaperClipOutlined />}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={!connected}
+          />
+
           <Dropdown menu={moreOptionsMenu} placement="topRight" trigger={['click']}>
-             <Button shape="circle" icon={<MoreOutlined />} />
+            <Button shape="circle" icon={<MoreOutlined />} />
           </Dropdown>
 
           <TextArea
@@ -343,7 +510,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
             autoSize={{ minRows: 1, maxRows: 4 }}
             disabled={!connected}
             autoFocus
-            style={{ 
+            style={{
               flex: 1,
               background: 'hsl(var(--muted))',
               border: 'none',
@@ -368,6 +535,13 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
         open={isSidebarOpen}
         width={350}
         styles={{ body: { padding: 0 } }}
+        extra={
+            <Button
+              icon={<CloseOutlined />}
+              type="text"
+              onClick={() => setSidebarOpen(false)}
+            />
+        }
       >
         {sidebarContent}
       </Drawer>
