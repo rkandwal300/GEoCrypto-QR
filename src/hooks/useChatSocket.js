@@ -59,10 +59,10 @@ const createMockSocket = () => {
  */
 export function useChatSocket({ userId, otherId, roomId }) {
   const resolvedRoomId = roomId || [userId, otherId].sort().join('--');
-  
+
   // Initialize state with an empty array to prevent hydration mismatch.
   const [messages, setMessages] = useState([]);
-  
+
   const [connected, setConnected] = useState(false);
   const socketRef = useRef(null);
 
@@ -87,7 +87,7 @@ export function useChatSocket({ userId, otherId, roomId }) {
     try {
       sessionStorage.setItem(`chat_${resolvedRoomId}`, JSON.stringify(messages));
     } catch (error) {
-       console.error("Failed to save messages to sessionStorage", error);
+      console.error("Failed to save messages to sessionStorage", error);
     }
   }, [messages, resolvedRoomId]);
 
@@ -163,11 +163,11 @@ export function useChatSocket({ userId, otherId, roomId }) {
     } else {
       // In mock mode, if session storage is empty, populate with some data.
       if (messages.length === 0) {
-         const mockHistory = [
-            { id: 'mock-1', text: 'Hello! This is a mock chat history.', senderId: otherId, timestamp: new Date(Date.now() - 60000 * 5).toISOString(), type: 'text' },
-            { id: 'mock-2', text: 'You can switch to a real backend via environment variables.', senderId: otherId, timestamp: new Date(Date.now() - 60000 * 4).toISOString(), type: 'text' },
-         ];
-         setMessages(mockHistory);
+        const mockHistory = [
+          { id: 'mock-1', name: "user-1", text: 'Hello! This is a mock chat history.', senderId: otherId, timestamp: new Date(Date.now() - 60000 * 5).toISOString(), type: 'text' },
+          { id: 'mock-2', name: "user-1", text: 'You can switch to a real backend via environment variables.', senderId: otherId, timestamp: new Date(Date.now() - 60000 * 4).toISOString(), type: 'text' },
+        ];
+        setMessages(mockHistory);
       }
     }
 
@@ -184,7 +184,7 @@ export function useChatSocket({ userId, otherId, roomId }) {
         socket.off('receiveMessage', onReceiveMessage);
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedRoomId]); // Re-run effect if room changes
 
   /**

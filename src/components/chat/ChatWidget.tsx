@@ -30,14 +30,45 @@ import {
   Badge,
   Divider,
   message,
+  MenuProps,
+  CollapseProps,
 } from 'antd';
 import { formatDistanceToNow } from 'date-fns';
 import { useChatSocket } from '../../hooks/useChatSocket';
-import Picker from 'emoji-picker-react';
+import Picker, { EmojiClickData } from 'emoji-picker-react';
 
 const { Header, Content, Footer } = Layout;
 const { Text, Title } = Typography;
 const { TextArea } = Input;
+
+interface Location {
+  lat: number;
+  long: number;
+}
+
+interface FileData {
+  url: string;
+  name: string;
+  size: number;
+}
+
+interface Message {
+  id: string;
+  senderId: string;
+  type: 'text' | 'file' | 'location';
+  timestamp: string;
+  text?: string;
+  file?: FileData;
+  location?: Location;
+  name?: string; // Add name property
+}
+
+interface ChatWidgetProps {
+  userId: string;
+  otherId: string;
+  roomId?: string;
+  title?: string;
+}
 
 /**
  * A reusable chat UI component for real-time messaging using Ant Design.
@@ -47,17 +78,17 @@ const { TextArea } = Input;
  * @param {string} [props.roomId] - The explicit room ID, if available.
  * @param {string} [props.title='trip-123'] - The title to display in the chat header.
  */
-export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
-  const [inputValue, setInputValue] = useState('');
-  const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const [isSearchVisible, setIsSearchVisible] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [starredMessages, setStarredMessages] = useState(new Set());
-  const [isEmojiPickerOpen, setEmojiPickerOpen] = useState(false);
+export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }: ChatWidgetProps) {
+  const [inputValue, setInputValue] = useState<string>('');
+  const [isSidebarOpen, setSidebarOpen] = useState<boolean>(false);
+  const [isSearchVisible, setIsSearchVisible] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [starredMessages, setStarredMessages] = useState<Set<string>>(new Set());
+  const [isEmojiPickerOpen, setEmojiPickerOpen] = useState<boolean>(false);
 
-  const contentRef = useRef(null);
-  const fileInputRef = useRef(null);
-  const messageRefs = useRef({});
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const messageRefs = useRef<Record<string, HTMLLIElement | null>>({});
 
   const { messages, sendMessage, connected } = useChatSocket({
     userId,
@@ -65,17 +96,17 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
     roomId,
   });
 
-  const filteredMessages = messages.filter(
-    (msg) =>
+  const filteredMessages: Message[] = messages.filter(
+    (msg: Message) =>
       msg.text?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       msg.type === 'location' ||
       msg.type === 'file'
   );
 
   const starredMessagesDetails = Array.from(starredMessages)
-    .map((id) => messages.find((msg) => msg.id === id))
-    .filter(Boolean)
-    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    .map((id) => messages.find((msg: Message) => msg.id === id))
+    .filter((msg): msg is Message => !!msg)
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
   const peopleInChat = [
     { id: 'user1', name: 'You', avatar: 'https://i.pravatar.cc/150?u=user1' },
@@ -85,7 +116,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
 
   useEffect(() => {
     if (contentRef.current && !searchQuery) {
-       contentRef.current.scrollTop = contentRef.current.scrollHeight;
+      contentRef.current.scrollTop = contentRef.current.scrollHeight;
     }
   }, [messages, searchQuery]);
 
@@ -94,7 +125,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
       const message = {
         text: inputValue,
         senderId: userId,
-        type: 'text',
+        type: 'text' as const,
       };
       sendMessage(message);
       setInputValue('');
@@ -102,23 +133,23 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
     }
   };
 
-  const handleEmojiClick = (emojiObject) => {
+  const handleEmojiClick = (emojiObject: EmojiClickData) => {
     setInputValue((prev) => prev + emojiObject.emoji);
   };
 
-  const handleFileUpload = (event) => {
-    const file = event.target.files[0];
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file) return;
     const fileUrl = URL.createObjectURL(file);
     const message = {
       file: { url: fileUrl, name: file.name, size: file.size },
       senderId: userId,
-      type: 'file',
+      type: 'file' as const,
     };
     sendMessage(message);
   };
 
-  const toggleStar = (messageId) => {
+  const toggleStar = (messageId: string) => {
     const newStarred = new Set(starredMessages);
     if (newStarred.has(messageId)) {
       newStarred.delete(messageId);
@@ -128,7 +159,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
     setStarredMessages(newStarred);
   };
 
-  const scrollToMessage = (messageId) => {
+  const scrollToMessage = (messageId: string) => {
     messageRefs.current[messageId]?.scrollIntoView({
       behavior: 'smooth',
       block: 'center',
@@ -148,7 +179,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
       (position) => {
         const { latitude, longitude } = position.coords;
         const locationMessage = {
-          type: 'location',
+          type: 'location' as const,
           senderId: userId,
           location: {
             lat: latitude,
@@ -164,7 +195,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
     );
   };
 
-  const moreOptionsMenu = {
+  const moreOptionsMenu: MenuProps = {
     items: [
       {
         key: 'location',
@@ -175,10 +206,10 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
     ],
   };
 
-  const sidebarItems = [
+  const sidebarItems: CollapseProps['items'] = [
     {
       key: '1',
-      label: <Text strong>Starred Messages</Text>,
+      label: <Typography.Text strong>Starred Messages</Typography.Text>,
       children:
         starredMessagesDetails.length > 0 ? (
           <List
@@ -191,10 +222,9 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
               >
                 <List.Item.Meta
                   title={
-                    <Text strong>
-                      {peopleInChat.find((p) => p.id === item.senderId)?.name ||
-                        item.senderId}
-                    </Text>
+                    <Typography.Text strong>
+                      {peopleInChat.find((p) => p.id === item.senderId)?.name || item.senderId}
+                    </Typography.Text>
                   }
                   description={<Text ellipsis>{item.text}</Text>}
                 />
@@ -215,7 +245,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
     },
     {
       key: '2',
-      label: <Text strong>People</Text>,
+      label: <Typography.Text strong>People</Typography.Text>,
       children: (
         <List
           dataSource={peopleInChat}
@@ -264,39 +294,42 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
     </>
   );
 
-  const renderMessageContent = (item, isSent) => {
+  const renderMessageContent = (item: Message, isSent: boolean) => {
     switch (item.type) {
       case 'text':
         return <p style={{ margin: 0, color: isSent ? '#fff' : 'inherit' }}>{item.text}</p>;
       case 'file':
-        return (
-          <a
-            href={item.file.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: 'inherit' }}
-          >
-            <PaperClipOutlined /> {item.file.name}
-          </a>
-        );
+        if (item.file) {
+          return (
+            <a
+              href={item.file.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: 'inherit' }}
+            >
+              <PaperClipOutlined /> {item.file.name}
+            </a>
+          );
+        }
+        return 'File data is missing.';
       case 'location':
         if (item.location) {
           return (
-             <div style={{width: 250, display: 'flex', flexDirection: 'column', gap: 8}}>
-                 <div style={{display: 'flex', alignItems: 'center', gap: 8}}>
-                    <PushpinOutlined />
-                    <span style={{fontWeight: 500}}>Location Shared</span>
-                 </div>
-                <div style={{aspectRatio: '16/9', width: '100%', borderRadius: 8, overflow: 'hidden', border: '1px solid #e0e0e0'}}>
+            <div style={{ width: 250, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <PushpinOutlined />
+                <span style={{ fontWeight: 500 }}>Location Shared</span>
+              </div>
+              <div style={{ aspectRatio: '16/9', width: '100%', borderRadius: 8, overflow: 'hidden', border: '1px solid #e0e0e0' }}>
                 <iframe
-                    width="100%"
-                    height="100%"
-                    loading="lazy"
-                    allowFullScreen
-                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${item.location.long - 0.01}%2C${item.location.lat - 0.01}%2C${item.location.long + 0.01}%2C${item.location.lat + 0.01}&layer=mapnik&marker=${item.location.lat}%2C${item.location.long}`}
-                  ></iframe>
-                </div>
-             </div>
+                  width="100%"
+                  height="100%"
+                  loading="lazy"
+                  allowFullScreen
+                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${item.location.long - 0.01}%2C${item.location.lat - 0.01}%2C${item.location.long + 0.01}%2C${item.location.lat + 0.01}&layer=mapnik&marker=${item.location.lat}%2C${item.location.long}`}
+                ></iframe>
+              </div>
+            </div>
           );
         }
         return 'Location data is missing.';
@@ -306,7 +339,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
   }
 
   return (
-    <Layout style={{ height: '100%' }}>
+    <Layout style={{ height: '100%', background: '#fff' }}>
       <Header
         style={{
           display: 'flex',
@@ -319,7 +352,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
         }}
       >
         <Flex align="center" gap="middle">
-          <Badge dot color={connected ? 'green' : 'red'} offset={[-5, 35]}>
+          <Badge dot color={connected ? 'green' : 'red'} offset={[-10, 32]}>
             <Avatar size="large" style={{ background: '#1890ff' }}>
               {title.charAt(0).toUpperCase()}
             </Avatar>
@@ -351,7 +384,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
         ) : (
           <Space>
             <Tooltip title="Starred Messages">
-               <Button
+              <Button
                 shape="circle"
                 icon={<StarOutlined />}
                 onClick={() => setSidebarOpen(true)}
@@ -376,85 +409,87 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
         )}
       </Header>
       <Content style={{ flex: 1, overflow: 'auto', padding: '16px 0', background: '#f5f5f5' }} ref={contentRef}>
-          <List
-            split={false}
-            dataSource={filteredMessages}
-            renderItem={(item) => {
-              const isSent = item.senderId === userId;
-              const isText = item.type === 'text';
+        <List
+          split={false}
+          dataSource={filteredMessages}
+          renderItem={(item) => {
+            const isSent = item.senderId === userId;
+            const isText = item.type === 'text';
 
-              return (
-                <List.Item
-                  ref={(el) => (messageRefs.current[item.id] = el)}
-                  style={{
-                    display: 'flex',
-                    justifyContent: isSent ? 'flex-end' : 'flex-start',
-                    padding: '0 16px 8px',
-                    border: 'none',
-                  }}
+            return (
+              <List.Item
+                ref={(el) => (messageRefs.current[item.id] = el)}
+                style={{
+                  display: 'flex',
+                  justifyContent: isSent ? 'flex-end' : 'flex-start',
+                  padding: '0 16px 8px',
+                  border: 'none',
+                }}
+              >
+                <div
+                  className="message-content-wrapper"
+                  style={{ maxWidth: '75%' }}
                 >
-                  <div
-                    className="message-content-wrapper"
-                    style={{ maxWidth: '75%' }}
-                  >
-                    <Flex gap="small" align="flex-end">
-                      {!isSent && <Avatar size="small" />}
-                      <div
-                        className="message-bubble"
-                        style={{
-                          background: isSent ? (isText ? '#1890ff' : '#ffffff') : '#e8e8e8',
-                          padding: '8px 12px',
-                          borderRadius: '18px',
-                          borderBottomLeftRadius: isSent ? '18px' : '4px',
-                          borderBottomRightRadius: isSent ? '4px' : '18px',
-                          color: isSent ? (isText ? '#ffffff' : '#000000') : '#000000',
-                          border: isSent && !isText ? '1px solid #e0e0e0' : 'none',
-                        }}
+                  <Flex gap="small" align="flex-end"> 
+                    {!isSent && item.name && <Avatar size="small"  >
+                      {item.name.charAt(0).toUpperCase()}
+                    </Avatar>}
+                    <div
+                      className="message-bubble"
+                      style={{
+                        background: isSent ? (isText ? '#1890ff' : '#ffffff') : '#e8e8e8',
+                        padding: '8px 12px',
+                        borderRadius: '18px',
+                        borderBottomLeftRadius: isSent ? '18px' : '4px',
+                        borderBottomRightRadius: isSent ? '4px' : '18px',
+                        color: isSent ? (isText ? '#ffffff' : '#000000') : '#000000',
+                        border: isSent && !isText ? '1px solid #e0e0e0' : 'none',
+                      }}
+                    >
+                      {renderMessageContent(item, isSent)}
+                      <Flex
+                        justify="flex-end"
+                        align="center"
+                        gap={4}
+                        style={{ marginTop: '4px' }}
                       >
-                       {renderMessageContent(item, isSent)}
-                        <Flex
-                          justify="flex-end"
-                          align="center"
-                          gap={4}
-                          style={{ marginTop: '4px' }}
+                        <Tooltip
+                          title={new Date(item.timestamp).toLocaleString()}
                         >
-                          <Tooltip
-                            title={new Date(item.timestamp).toLocaleString()}
+                          <Text
+                            style={{
+                              fontSize: '10px',
+                              color: isSent && isText ? 'rgba(255, 255, 255, 0.75)' : 'rgba(0, 0, 0, 0.45)'
+                            }}
                           >
-                            <Text
-                              style={{
-                                fontSize: '10px',
-                                color: isSent && isText ? 'rgba(255, 255, 255, 0.75)' : 'rgba(0, 0, 0, 0.45)'
-                              }}
-                            >
-                              {formatDistanceToNow(new Date(item.timestamp), {
-                                addSuffix: true,
-                              })}
-                            </Text>
-                          </Tooltip>
-                          <Tooltip title="Star message">
-                            <Button
-                              type="text"
-                              size="small"
-                              shape="circle"
-                              icon={
-                                starredMessages.has(item.id) ? (
-                                  <StarFilled style={{ color: '#ffc107' }} />
-                                ) : (
-                                  <StarOutlined style={{ color: isSent && isText ? 'rgba(255, 255, 255, 0.75)' : 'rgba(0, 0, 0, 0.45)' }} />
-                                )
-                              }
-                              onClick={() => toggleStar(item.id)}
-                            />
-                          </Tooltip>
-                        </Flex>
-                      </div>
-                    </Flex>
-                  </div>
-                </List.Item>
-              );
-            }}
-          />
+                            {formatDistanceToNow(new Date(item.timestamp), {
+                              addSuffix: true,
+                            })}
+                          </Text>
+                        </Tooltip>
+                        <Tooltip title="Star message">
+                          <Button
+                            type="text"
+                            size="small"
+                            shape="circle"
+                            icon={
+                              starredMessages.has(item.id) ? (
+                                <StarFilled style={{ color: '#ffc107' }} />
+                              ) : (
+                                <StarOutlined style={{ color: isSent && isText ? 'rgba(255, 255, 255, 0.75)' : 'rgba(0, 0, 0, 0.45)' }} />
+                              )
+                            }
+                            onClick={() => toggleStar(item.id)}
+                          />
+                        </Tooltip>
+                      </Flex>
+                    </div>
+                  </Flex>
+                </div>
+              </List.Item>
+            );
+          }}
+        />
       </Content>
       <Footer
         style={{
@@ -486,13 +521,13 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
             }}
           />
           <Space>
-             <Popover
-                content={<Picker onEmojiClick={handleEmojiClick} />}
-                trigger="click"
-                open={isEmojiPickerOpen}
-                onOpenChange={setEmojiPickerOpen}
-                placement="topLeft"
-              >
+            <Popover
+              content={<Picker onEmojiClick={handleEmojiClick} />}
+              trigger="click"
+              open={isEmojiPickerOpen}
+              onOpenChange={setEmojiPickerOpen}
+              placement="topLeft"
+            >
               <Button shape="circle" icon={<SmileOutlined />} />
             </Popover>
             <input
