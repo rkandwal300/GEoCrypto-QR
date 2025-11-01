@@ -330,7 +330,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }) {
             <Title level={5} style={{ margin: 0 }}>
               {title}
             </Title>
-            <Text type="secondary">{connected ? 'Online' : 'Offline'}</Text>
+            <Text type="secondary" style={{ fontSize: '12px' }}>{connected ? 'Online' : 'Offline'}</Text>
           </Flex>
         </Flex>
 
