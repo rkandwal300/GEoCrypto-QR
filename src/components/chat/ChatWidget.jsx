@@ -134,13 +134,13 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
     setSidebarOpen(false);
   };
 
-  const moreOptionsMenu = (
-    <Dropdown.Menu>
-      <Dropdown.Menu.Item key="location" icon={<EnvironmentOutlined />}>
-        Send current location
-      </Dropdown.Menu.Item>
-    </Dropdown.Menu>
-  );
+  const moreOptionsMenu = [
+    {
+      key: 'location',
+      icon: <EnvironmentOutlined />,
+      label: 'Send current location',
+    },
+  ];
 
   const sidebarContent = (
     <>
@@ -307,7 +307,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
           <input type="file" ref={fileInputRef} onChange={handleFileUpload} style={{ display: 'none' }} disabled={!connected} />
           <Button shape="circle" icon={<PaperClipOutlined />} onClick={() => fileInputRef.current?.click()} disabled={!connected} />
           
-          <Dropdown menu={{ items: moreOptionsMenu.props.items }} placement="topRight" trigger={['click']}>
+          <Dropdown menu={{ items: moreOptionsMenu }} placement="topRight" trigger={['click']}>
              <Button shape="circle" icon={<MoreOutlined />} />
           </Dropdown>
 
