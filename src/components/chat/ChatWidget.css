@@ -6,6 +6,8 @@
   width: 100%;
   background: hsl(var(--background));
   overflow: hidden;
+  border-radius: var(--radius);
+  border: 1px solid hsl(var(--border));
 }
 
 .chat-header {
@@ -43,12 +45,9 @@
 .chat-messages-container {
   flex-grow: 1;
   overflow-y: auto;
-  padding: 16px;
 }
 
-.chat-messages-container .ant-list-item {
-  border-block-end: none !important;
-  padding: 4px 0 !important;
+.chat-message {
   display: flex;
 }
 
@@ -98,6 +97,7 @@
   text-align: right;
   opacity: 0;
   transition: opacity 0.2s ease-in-out;
+  cursor: default;
 }
 
 .message-content:hover .message-timestamp {
@@ -121,7 +121,6 @@
 @media (max-width: 768px) {
   .chat-widget {
     border-left: none;
+    border-radius: 0;
   }
 }
-
-    

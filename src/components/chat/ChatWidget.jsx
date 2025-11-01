@@ -2,7 +2,6 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { List, Avatar, Input, Button, Upload, Badge } from 'antd';
 import {
   Paperclip,
   Send,
@@ -11,7 +10,6 @@ import {
   Star,
   Search,
   Users,
-  X,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useChatSocket } from '../../hooks/useChatSocket';
@@ -22,15 +20,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Separator } from '../ui/separator';
-
-// Mock function for file uploads when using mock server
-const mockRequest = ({ onSuccess }) => {
-  setTimeout(() => {
-    onSuccess('ok');
-  }, 1000);
-};
+import { ScrollArea } from '../ui/scroll-area';
+import { Textarea } from '../ui/textarea';
 
 /**
  * A reusable chat UI component for real-time messaging.
@@ -43,7 +40,8 @@ const mockRequest = ({ onSuccess }) => {
 export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
   const [inputValue, setInputValue] = useState('');
   const [isPeopleSidebarOpen, setPeopleSidebarOpen] = useState(false);
-  const listRef = useRef(null);
+  const scrollAreaRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const { messages, sendMessage, connected } = useChatSocket({
     userId,
@@ -53,8 +51,11 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
 
   // Scroll to the bottom of the message list whenever new messages are added
   useEffect(() => {
-    if (listRef.current) {
-      listRef.current.scrollTop = listRef.current.scrollHeight;
+    if (scrollAreaRef.current) {
+      const scrollableViewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollableViewport) {
+        scrollableViewport.scrollTop = scrollableViewport.scrollHeight;
+      }
     }
   }, [messages]);
 
@@ -72,39 +73,24 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
   };
 
   // Handler for file uploads
-  const handleUploadChange = (info) => {
-    if (info.file.status === 'done') {
-      const isMock = process.env.NEXT_PUBLIC_USE_MOCK === 'true';
-      const fileUrl = isMock
-        ? `/uploads/${info.file.name}`
-        : info.file.response.url;
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
 
-      const message = {
-        file: {
-          url: fileUrl,
-          name: info.file.name,
-          size: info.file.size,
-        },
-        senderId: userId,
-        type: 'file',
-      };
-      sendMessage(message);
-    } else if (info.file.status === 'error') {
-      console.error('Upload error:', info.file.error);
-    }
-  };
+    // In a real app, you'd upload the file to a server and get a URL.
+    // For this mock, we'll just create a local object URL.
+    const fileUrl = URL.createObjectURL(file);
 
-  const uploadProps = {
-    name: 'file',
-    action:
-      process.env.NEXT_PUBLIC_USE_MOCK === 'true'
-        ? undefined
-        : `${process.env.NEXT_PUBLIC_API_URL}/upload`,
-    customRequest:
-      process.env.NEXT_PUBLIC_USE_MOCK === 'true' ? mockRequest : undefined,
-    headers: {},
-    showUploadList: false,
-    onChange: handleUploadChange,
+    const message = {
+      file: {
+        url: fileUrl,
+        name: file.name,
+        size: file.size,
+      },
+      senderId: userId,
+      type: 'file',
+    };
+    sendMessage(message);
   };
   
   const headerActions = [
@@ -125,9 +111,14 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
       <div className="chat-widget">
         <header className="chat-header">
           <div className="chat-header-info">
-            <Badge status={connected ? 'success' : 'error'} offset={[-5, 25]} dot>
-              <Avatar icon={<User />} />
-            </Badge>
+            <div className="relative">
+              <Avatar>
+                <AvatarFallback>
+                  {title.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+              <Badge className={`absolute bottom-0 right-0 w-3 h-3 p-0 border-2 border-background ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
+            </div>
             <div>
               <h3 className="chat-title">{title}</h3>
               <span className="chat-status">
@@ -162,65 +153,90 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
           </div>
         </header>
 
-        <div className="chat-messages-container" ref={listRef}>
-          <List
-            dataSource={messages}
-            renderItem={(item) => (
-              <List.Item
-                key={item.id}
-                className={`chat-message ${
-                  item.senderId === userId ? 'sent' : 'received'
-                }`}
-              >
-                <div className="message-content">
-                  {item.type === 'text' && <p>{item.text}</p>}
-                  {item.type === 'file' && (
-                    <a
-                      href={item.file.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Paperclip /> {item.file.name}
-                    </a>
-                  )}
-                  <div className="message-timestamp">
-                    <Tooltip title={new Date(item.timestamp).toLocaleString()}>
-                      <span>
-                        {formatDistanceToNow(new Date(item.timestamp), {
-                          addSuffix: true,
-                        })}
-                      </span>
-                    </Tooltip>
+        <ScrollArea className="chat-messages-container" ref={scrollAreaRef}>
+          <div className="p-4 space-y-4">
+            {messages.map((item) => (
+                <div
+                  key={item.id}
+                  className={`chat-message ${
+                    item.senderId === userId ? 'sent' : 'received'
+                  }`}
+                >
+                  <div className="message-content">
+                    {item.type === 'text' && <p>{item.text}</p>}
+                    {item.type === 'file' && (
+                      <a
+                        href={item.file.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2"
+                      >
+                        <Paperclip className="h-4 w-4" /> <span>{item.file.name}</span>
+                      </a>
+                    )}
+                    <div className="message-timestamp">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                           <span>
+                            {formatDistanceToNow(new Date(item.timestamp), {
+                              addSuffix: true,
+                            })}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {new Date(item.timestamp).toLocaleString()}
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                   </div>
                 </div>
-              </List.Item>
-            )}
-          />
-        </div>
+              ))}
+          </div>
+        </ScrollArea>
 
         <footer className="chat-footer">
-          <Input.TextArea
+           <Textarea
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            onPressEnter={(e) => {
-              if (!e.shiftKey) {
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSendMessage();
               }
             }}
             placeholder="Type a message..."
-            autoSize={{ minRows: 1, maxRows: 4 }}
+            rows={1}
+            className="resize-none max-h-24"
             disabled={!connected}
           />
-          <Upload {...uploadProps} disabled={!connected}>
-            <Button icon={<Paperclip />} disabled={!connected} />
-          </Upload>
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileUpload} 
+            className="hidden" 
+            disabled={!connected}
+          />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={!connected}
+              >
+                <Paperclip className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent><p>Attach file</p></TooltipContent>
+          </Tooltip>
           <Button
-            type="primary"
-            icon={<Send />}
             onClick={handleSendMessage}
             disabled={!inputValue.trim() || !connected}
-          />
+            size="icon"
+          >
+            <Send className="h-5 w-5" />
+            <span className="sr-only">Send</span>
+          </Button>
         </footer>
 
         <Sheet open={isPeopleSidebarOpen} onOpenChange={setPeopleSidebarOpen}>
@@ -228,24 +244,23 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
             <div className="p-4 border-b">
                 <div className="relative">
                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                     <Input placeholder="Search messages..." className="pl-9"/>
+                     <Input placeholder="Search people..." className="pl-9"/>
                 </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                <h3 className="font-semibold text-lg">People</h3>
-                 <List
-                    dataSource={peopleInChat}
-                    renderItem={(person) => (
-                        <List.Item className='border-none p-0'>
-                            <div className="flex items-center gap-3 py-2">
-                                <Avatar src={person.avatar}><span className="font-bold">P</span></Avatar>
-                                <span className="font-medium">{person.name}</span>
-                            </div>
-                        </List.Item>
-                    )}
-                 />
-
-            </div>
+            <ScrollArea className="flex-1">
+              <div className="p-4 space-y-2">
+                  <h3 className="font-semibold text-lg px-2">People</h3>
+                  {peopleInChat.map((person) => (
+                    <div key={person.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted">
+                        <Avatar>
+                            <AvatarImage src={person.avatar} alt={person.name} />
+                            <AvatarFallback>{person.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <span className="font-medium">{person.name}</span>
+                    </div>
+                  ))}
+              </div>
+            </ScrollArea>
           </SheetContent>
         </Sheet>
       </div>
