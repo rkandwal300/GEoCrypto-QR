@@ -220,9 +220,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
                 ref={(el) => (messageRefs.current[item.id] = el)}
                 onMouseEnter={() => setHoveredMessageId(item.id)}
                 onMouseLeave={() => setHoveredMessageId(null)}
-                className={`chat-message-wrapper ${
-                  item.senderId === userId ? 'sent' : 'received'
-                }`}
+                className={`chat-message-wrapper`}
               >
                 <div className={`chat-message ${item.senderId === userId ? 'sent' : 'received'}`}>
                   <div className="message-content">
@@ -237,39 +235,41 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
                         <Paperclip className="h-4 w-4" /> <span>{item.file.name}</span>
                       </a>
                     )}
-                    <div className="message-timestamp">
+                    <div className="message-footer">
+                       <div className="message-timestamp">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                             <span>
+                              {formatDistanceToNow(new Date(item.timestamp), {
+                                addSuffix: true,
+                              })}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {new Date(item.timestamp).toLocaleString()}
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                           <span>
-                            {formatDistanceToNow(new Date(item.timestamp), {
-                              addSuffix: true,
-                            })}
-                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="star-button h-6 w-6"
+                            onClick={() => toggleStar(item.id)}
+                          >
+                            <Star
+                              className={cn('h-4 w-4', starredMessages.has(item.id) && 'fill-current text-yellow-400')}
+                            />
+                          </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          {new Date(item.timestamp).toLocaleString()}
+                          <p>Star message</p>
                         </TooltipContent>
                       </Tooltip>
                     </div>
                   </div>
                 </div>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="star-button h-7 w-7"
-                      onClick={() => toggleStar(item.id)}
-                    >
-                      <Star
-                        className={cn('h-4 w-4', starredMessages.has(item.id) && 'fill-current text-yellow-400')}
-                      />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Star message</p>
-                  </TooltipContent>
-                </Tooltip>
               </div>
               ))}
           </div>
@@ -323,8 +323,8 @@ export function ChatWidget({ userId, otherId, roomId, title = 'Chat' }) {
         <Sheet open={isPeopleSidebarOpen} onOpenChange={setPeopleSidebarOpen}>
           <SheetContent className="w-[350px] sm:w-[400px] p-0 flex flex-col">
             <SheetHeader className="p-4 border-b">
-                <SheetTitle className="sr-only">People</SheetTitle>
-                <div className="relative">
+                <SheetTitle>People</SheetTitle>
+                <div className="relative mt-2">
                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                      <Input placeholder="Search people..." className="pl-9"/>
                 </div>

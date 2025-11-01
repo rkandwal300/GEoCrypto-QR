@@ -48,36 +48,7 @@
 }
 
 .chat-message-wrapper {
-  position: relative;
   display: flex;
-}
-
-.chat-message-wrapper .star-button {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 10;
-  opacity: 0;
-  transition: opacity 0.2s ease-in-out, color 0.2s ease-in-out;
-  color: hsl(var(--muted-foreground));
-}
-
-.chat-message-wrapper:hover .star-button {
-  opacity: 1;
-}
-
-.chat-message.sent .star-button {
-  left: -2.5rem;
-}
-.chat-message.sent .star-button:hover {
-  color: hsl(var(--primary-foreground));
-}
-
-.chat-message.received .star-button {
-  right: -2.5rem;
-}
-.chat-message.received .star-button:hover {
-  color: hsl(var(--primary));
 }
 
 .chat-message {
@@ -86,12 +57,10 @@
 }
 
 .chat-message.sent {
-  justify-content: flex-end;
   margin-left: auto;
 }
 
 .chat-message.received {
-  justify-content: flex-start;
   margin-right: auto;
 }
 
@@ -113,7 +82,6 @@
   text-decoration: underline;
 }
 
-
 .chat-message.received .message-content {
   background-color: hsl(var(--muted));
   color: hsl(var(--foreground));
@@ -126,24 +94,45 @@
   word-wrap: break-word;
 }
 
+.message-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.message-content:hover .message-footer {
+  opacity: 1;
+}
+
 .message-timestamp {
   font-size: 10px;
   color: hsl(var(--muted-foreground));
-  margin-top: 4px;
-  text-align: right;
-  opacity: 0;
-  transition: opacity 0.2s ease-in-out;
   cursor: default;
 }
 
-.message-content:hover .message-timestamp {
-    opacity: 1;
+.star-button {
+  color: hsl(var(--muted-foreground));
 }
 
+.star-button:hover {
+  color: hsl(var(--primary));
+}
 
 .chat-message.sent .message-timestamp {
   color: hsla(var(--primary-foreground), 0.7);
 }
+
+.chat-message.sent .star-button {
+  color: hsla(var(--primary-foreground), 0.7);
+}
+.chat-message.sent .star-button:hover {
+  color: hsl(var(--primary-foreground));
+}
+
 
 .chat-footer {
   display: flex;
