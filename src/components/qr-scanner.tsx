@@ -64,7 +64,7 @@ export function QrScanner() {
   const [hasCameraPermission, setHasCameraPermission] = useState(true);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const readerId = 'qr-code-reader-video';
 
@@ -163,7 +163,8 @@ message.error(geoErrorMessage);
       fps: 10,
       qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
         const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-        const qrboxSize = Math.floor(minEdge * 0.7);
+        // Ensure qrbox size is at least 50px, but not larger than the viewfinder.
+        const qrboxSize = Math.max(50, Math.floor(minEdge * 0.7));
         return {
           width: qrboxSize,
           height: qrboxSize,
@@ -220,6 +221,7 @@ message.error(geoErrorMessage);
         });
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [containerRef, scannedData, error]);
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
