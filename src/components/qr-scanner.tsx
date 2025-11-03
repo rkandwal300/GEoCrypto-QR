@@ -222,7 +222,7 @@ message.error(geoErrorMessage);
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [containerRef, scannedData, error]);
+  }, [containerRef.current, scannedData, error]);
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -282,14 +282,14 @@ message.error(geoErrorMessage);
                   </Card>
                 </div>
 
-                {scannedData.deviceLocation && (
+                {scannedData.deviceLocation && scannedData.qrData.location && (
                   <Flex vertical gap="middle">
-                    <Title level={4}><EnvironmentOutlined style={{ marginRight: 8, color: '#1890ff' }} />Location Captured</Title>
+                    <Title level={4}><EnvironmentOutlined style={{ marginRight: 8, color: '#1890ff' }} />Location Details</Title>
                     <Card style={{ background: '#f5f5f5' }}>
-                       <p><Text strong>Latitude:</Text> {scannedData.deviceLocation.lat}</p>
-                       <p><Text strong>Longitude:</Text> {scannedData.deviceLocation.long}</p>
+                       <p><Text strong>QR Target Location:</Text> {scannedData.qrData.location.lat.toFixed(6)}, {scannedData.qrData.location.long.toFixed(6)}</p>
+                       <p><Text strong>Your Location:</Text> {scannedData.deviceLocation.lat.toFixed(6)}, {scannedData.deviceLocation.long.toFixed(6)}</p>
                        <p><Text strong>Accuracy:</Text> {scannedData.deviceLocation.accuracy.toFixed(2)} meters</p>
-                       <p><Text strong>Distance from QR Target:</Text> {scannedData.distance?.toFixed(2)} meters</p>
+                       <p><Text strong>Distance:</Text> <Text type="success" strong>{scannedData.distance?.toFixed(2)} meters away</Text></p>
                     </Card>
                     <div style={{ aspectRatio: '16/9', width: '100%', borderRadius: 8, overflow: 'hidden', border: '1px solid #e8e8e8' }}>
                       <iframe
@@ -308,9 +308,9 @@ message.error(geoErrorMessage);
                   size="large"
                   icon={<ReloadOutlined />}
                   onClick={() => {
-                    scannerRef.current = null;
                     setScannedData(null);
                     setError(null);
+                    scannerRef.current = null;
                   }}
                   style={{ width: '100%', marginTop: '16px' }}
                 >
@@ -342,63 +342,63 @@ message.error(geoErrorMessage);
         }
       `}</style>
       <Layout style={{ position: 'fixed', inset: 0, background: '#000' }}>
-        <Content style={{ height: '100%' }}>
-            <Spin
-                spinning={isLoading}
-                indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />}
-                tip={isLoading ? "Starting camera..." : null}
-                style={{ maxHeight: '100vh' }}
-            >
-                <div id={readerId} ref={containerRef} style={{ width: '100%', height: '100%', display: shouldShowScannerUI ? 'block' : 'none' }} />
-                
-                {error && !isLoading && (
-                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20, background: 'rgba(0,0,0,0.8)', padding: '16px' }}>
-                        <Alert
-                            message={"Scan Failed"}
-                            description={error}
-                            type="error"
-                            showIcon
-                            action={
-                                <Space direction="vertical" style={{ marginTop: 16, width: '100%' }}>
-                                <Button type="primary" onClick={() => {
-                                    scannerRef.current = null;
-                                    setScannedData(null);
-                                    setError(null);
-                                }} style={{width: '100%'}}>
-                                    Try Scanning Again
-                                </Button>
-                                <Button onClick={() => fileInputRef.current?.click()} style={{width: '100%'}}>
-                                    Upload File Instead
-                                </Button>
-                                </Space>
-                            }
-                            style={{ maxWidth: '400px', width: '100%' }}
-                        />
-                    </div>
-                )}
-            </Spin>
-        </Content>
-        
-        <Footer style={{ position: 'absolute', bottom: 0, width: '100%', background: 'transparent', textAlign: 'center', padding: '24px', zIndex: 10, visibility: shouldShowScannerUI ? 'visible' : 'hidden' }}>
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              accept="image/png, image/jpeg, image/gif"
-              style={{ display: 'none' }}
-            />
-            <Button
-              type="primary"
-              ghost
-              size="large"
-              icon={<UploadOutlined />}
-              onClick={() => fileInputRef.current?.click()}
-              loading={isScanningFile}
-              style={{ background: 'rgba(255,255,255,0.9)', color: '#1890ff', fontWeight: 'bold', border: 'none' }}
-            >
-              Upload QR Code
-            </Button>
-        </Footer>
+          <Content style={{ height: '100%' }}>
+              <Spin
+                  spinning={isLoading}
+                  indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />}
+                  tip={isLoading ? "Starting camera..." : null}
+                  style={{ maxHeight: '100vh' }}
+              >
+                  <div id={readerId} ref={containerRef} style={{ width: '100%', height: '100%', display: shouldShowScannerUI ? 'block' : 'none' }} />
+                  
+                  {error && !isLoading && (
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20, background: 'rgba(0,0,0,0.8)', padding: '16px' }}>
+                          <Alert
+                              message={"Scan Failed"}
+                              description={error}
+                              type="error"
+                              showIcon
+                              action={
+                                  <Space direction="vertical" style={{ marginTop: 16, width: '100%' }}>
+                                  <Button type="primary" onClick={() => {
+                                      setScannedData(null);
+                                      setError(null);
+                                      scannerRef.current = null;
+                                  }} style={{width: '100%'}}>
+                                      Try Scanning Again
+                                  </Button>
+                                  <Button onClick={() => fileInputRef.current?.click()} style={{width: '100%'}}>
+                                      Upload File Instead
+                                  </Button>
+                                  </Space>
+                              }
+                              style={{ maxWidth: '400px', width: '100%' }}
+                          />
+                      </div>
+                  )}
+              </Spin>
+          </Content>
+          
+          <Footer style={{ position: 'absolute', bottom: 0, width: '100%', background: 'transparent', textAlign: 'center', padding: '24px', zIndex: 10, visibility: shouldShowScannerUI ? 'visible' : 'hidden' }}>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept="image/png, image/jpeg, image/gif"
+                style={{ display: 'none' }}
+              />
+              <Button
+                type="primary"
+                ghost
+                size="large"
+                icon={<UploadOutlined />}
+                onClick={() => fileInputRef.current?.click()}
+                loading={isScanningFile}
+                style={{ background: 'rgba(255,255,255,0.9)', color: '#1890ff', fontWeight: 'bold', border: 'none' }}
+              >
+                Upload QR Code
+              </Button>
+          </Footer>
       </Layout>
     </>
   );
