@@ -29,6 +29,7 @@ export function QrScanner() {
   const [scannedData, setScannedData] = useState<ScannedDataType | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isScanningFile, setIsScanningFile] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState(true);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
@@ -41,6 +42,7 @@ export function QrScanner() {
     }
     setIsLoading(true);
     setError(null);
+    setIsScanningFile(false);
 
     try {
       const decrypted = decryptData(decodedText);
@@ -85,11 +87,25 @@ export function QrScanner() {
     setError(null);
     if (scannedData) setScannedData(null);
     setIsLoading(true);
-
+    
+    // Ensure the container is ready
     if (!document.getElementById(readerId)) {
       setTimeout(startScanner, 100);
       return;
     }
+    
+    if (scannerRef.current && scannerRef.current.isScanning) {
+      try {
+        await scannerRef.current.stop();
+      } catch (err) {
+        console.error("Failed to stop existing scanner before starting a new one.", err);
+      }
+    }
+
+    scannerRef.current = new Html5Qrcode(readerId, {
+      verbose: false,
+      formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+    });
 
     const config = {
       fps: 10,
@@ -116,13 +132,6 @@ export function QrScanner() {
     };
 
     try {
-      if (!scannerRef.current) {
-        scannerRef.current = new Html5Qrcode(readerId, {
-          verbose: false,
-          formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-        });
-      }
-
       await scannerRef.current.start(
         { facingMode: 'environment' },
         config,
@@ -148,20 +157,19 @@ export function QrScanner() {
   };
 
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (typeof window !== 'undefined') {
-        startScanner();
-      }
-    }, 100);
-
+    // Only run on client
+    if (typeof window !== 'undefined') {
+      startScanner();
+    }
+    
     return () => {
-      clearTimeout(timeoutId);
       if (scannerRef.current?.isScanning) {
         scannerRef.current.stop().catch((err) => {
           console.error('Failed to stop the scanner on cleanup.', err);
         });
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -170,22 +178,30 @@ export function QrScanner() {
       if (scannerRef.current?.isScanning) {
         await scannerRef.current.stop();
       }
+      
       setScannedData(null);
       setError(null);
       setIsLoading(true);
+      setIsScanningFile(true); // Keep the reader element visible
+
+      // Use a new scanner instance for file scanning to avoid state conflicts
+      const fileScanner = new Html5Qrcode(readerId, { verbose: false });
 
       try {
-        const tempScanner = new Html5Qrcode(readerId, { verbose: false });
-        const decodedText = await tempScanner.scanFile(file, false);
+        const decodedText = await fileScanner.scanFile(file, false);
         processDecodedText(decodedText);
       } catch (err: any) {
         const errorMessage = 'Could not scan the QR code from the image. Please try a different file.';
         setError(errorMessage);
         message.error(errorMessage);
         setIsLoading(false);
-      }
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        setIsScanningFile(false);
+        // If file scan fails, try to restart the camera scanner
+        startScanner();
+      } finally {
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
       }
     }
   };
@@ -259,6 +275,9 @@ export function QrScanner() {
   return (
     <>
       <style jsx global>{`
+        #${readerId} {
+          background: #000;
+        }
         #${readerId} video {
           width: 100% !important;
           height: 100% !important;
@@ -270,22 +289,27 @@ export function QrScanner() {
       `}</style>
       <Layout style={{ position: 'fixed', inset: 0, background: '#000' }}>
          <Spin
-          spinning={isLoading || (error && !hasCameraPermission)}
+          spinning={isLoading && !isScanningFile}
           indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />}
           tip={isLoading ? "Starting camera..." : null}
           fullscreen
         >
-          {error && !hasCameraPermission && (
+          {error && (
             <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20, background: 'rgba(0,0,0,0.8)' }}>
               <Alert
-                message="Camera Error"
+                message="Scanner Error"
                 description={error}
                 type="error"
                 showIcon
                 action={
-                  <Button type="primary" onClick={startScanner}>
-                    Try Again
-                  </Button>
+                  <Space direction="vertical">
+                    <Button type="primary" onClick={startScanner}>
+                      Try Camera Again
+                    </Button>
+                     <Button onClick={() => fileInputRef.current?.click()}>
+                      Upload File Instead
+                    </Button>
+                  </Space>
                 }
                 style={{ maxWidth: '400px' }}
               />
@@ -308,7 +332,7 @@ export function QrScanner() {
               size="large"
               icon={<UploadOutlined />}
               onClick={() => fileInputRef.current?.click()}
-              loading={isLoading}
+              loading={isScanningFile}
               style={{ background: 'rgba(255,255,255,0.9)', color: '#1890ff', fontWeight: 'bold', border: 'none' }}
             >
               Upload QR Code
@@ -319,5 +343,3 @@ export function QrScanner() {
     </>
   );
 }
-
-    
