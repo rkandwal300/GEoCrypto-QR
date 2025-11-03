@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -204,13 +203,10 @@ export function QrScanner() {
   };
 
   useEffect(() => {
-    // This effect handles starting the scanner when the component mounts
-    // or when the user resets the scanner state.
     if (typeof window !== 'undefined' && containerRef.current && !scannedData && !error) {
       startScanner();
     }
     
-    // This is the cleanup function.
     return () => {
       const stopScanner = async () => {
         if (scannerRef.current?.isScanning) {
@@ -223,8 +219,7 @@ export function QrScanner() {
       };
       stopScanner();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scannedData, error]); // Re-run when state is reset.
+  }, [scannedData, error]); 
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -242,7 +237,6 @@ export function QrScanner() {
       setIsLoading(true);
       setIsScanningFile(true); 
 
-      // The div must be in the DOM for scanFile to work.
       const fileScanner = new Html5Qrcode(readerId, { verbose: false });
 
       try {
