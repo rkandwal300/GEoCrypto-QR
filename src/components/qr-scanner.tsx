@@ -122,7 +122,7 @@ export function QrScanner() {
             console.error('Geolocation error:', geoError);
             const geoErrorMessage = 'Could not get your location. Please enable location services to verify the QR code.';
             setError(geoErrorMessage);
-message.error(geoErrorMessage);
+            message.error(geoErrorMessage);
             setIsLoading(false);
           },
           { enableHighAccuracy: true }
@@ -143,19 +143,10 @@ message.error(geoErrorMessage);
   };
 
   const startScanner = async () => {
-    if (!containerRef.current) return;
-    if (error) setError(null);
-    if (scannedData) setScannedData(null);
+    if (!containerRef.current || (scannerRef.current && scannerRef.current.isScanning)) return;
     
     setIsLoading(true);
-
-    if (scannerRef.current && scannerRef.current.isScanning) {
-      try {
-        await scannerRef.current.stop();
-      } catch (err) {
-        console.error("Failed to stop existing scanner.", err);
-      }
-    }
+    setHasCameraPermission(true);
 
     const html5QrCode = new Html5Qrcode(readerId, {
         verbose: false,
@@ -167,7 +158,6 @@ message.error(geoErrorMessage);
       fps: 10,
       qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
         const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-        // Ensure qrbox size is at least 50px, but not larger than the viewfinder.
         const qrboxSize = Math.max(50, Math.floor(minEdge * 0.7));
         return {
           width: qrboxSize,
@@ -214,10 +204,13 @@ message.error(geoErrorMessage);
   };
 
   useEffect(() => {
+    // This effect handles starting the scanner when the component mounts
+    // or when the user resets the scanner state.
     if (typeof window !== 'undefined' && containerRef.current && !scannedData && !error) {
       startScanner();
     }
     
+    // This is the cleanup function.
     return () => {
       const stopScanner = async () => {
         if (scannerRef.current?.isScanning) {
@@ -231,13 +224,17 @@ message.error(geoErrorMessage);
       stopScanner();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [containerRef, scannedData, error]);
+  }, [scannedData, error]); // Re-run when state is reset.
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       if (scannerRef.current?.isScanning) {
-        await scannerRef.current.stop();
+        try {
+            await scannerRef.current.stop();
+        } catch(err) {
+            console.error("Error stopping scanner for file upload", err);
+        }
       }
       
       setScannedData(null);
@@ -317,9 +314,9 @@ message.error(geoErrorMessage);
                   size="large"
                   icon={<ReloadOutlined />}
                   onClick={() => {
+                    scannerRef.current = null;
                     setScannedData(null);
                     setError(null);
-                    scannerRef.current = null;
                   }}
                   style={{ width: '100%', marginTop: '16px' }}
                 >
@@ -333,7 +330,7 @@ message.error(geoErrorMessage);
     );
   }
 
-  const shouldShowScannerUI = !scannedData && (!error || isLoading);
+  const shouldShowScannerUI = !scannedData;
 
   return (
     <>
@@ -370,9 +367,9 @@ message.error(geoErrorMessage);
                               action={
                                   <Space direction="vertical" style={{ marginTop: 16, width: '100%' }}>
                                   <Button type="primary" onClick={() => {
+                                      scannerRef.current = null;
                                       setScannedData(null);
                                       setError(null);
-                                      scannerRef.current = null;
                                   }} style={{width: '100%'}}>
                                       Try Scanning Again
                                   </Button>
@@ -388,7 +385,7 @@ message.error(geoErrorMessage);
               </Spin>
           </Content>
           
-          <Footer style={{ position: 'absolute', bottom: 0, width: '100%', background: 'transparent', textAlign: 'center', padding: '24px', zIndex: 10, visibility: shouldShowScannerUI ? 'visible' : 'hidden' }}>
+          <Footer style={{ position: 'absolute', bottom: 0, width: '100%', background: 'transparent', textAlign: 'center', padding: '24px', zIndex: 10, visibility: shouldShowScannerUI && !error && !isLoading ? 'visible' : 'hidden' }}>
               <input
                 type="file"
                 ref={fileInputRef}
@@ -412,5 +409,3 @@ message.error(geoErrorMessage);
     </>
   );
 }
-
-    
