@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import QRCode from "qrcode.react";
-import { Download, Share2, Wand2 } from "lucide-react";
+import { Download, Share2, Wand2, MapPin, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -36,6 +36,7 @@ const formSchema = z.object({
 
 export function QrGenerator() {
   const [qrValue, setQrValue] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
   const qrCodeRef = useRef<HTMLDivElement>(null);
 
@@ -53,29 +54,70 @@ export function QrGenerator() {
     }
   };
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    try {
-      const dataToEncrypt = {
-        data: values.jsonData,
-      };
+  const onSubmit = (values: z.infer<typeof formSchema>) => {
+    setIsGenerating(true);
+    setQrValue(null);
+    toast({
+        title: "Getting Location...",
+        description: "Please wait while we fetch your current location.",
+    });
 
-      const encrypted = encryptData(dataToEncrypt);
-      setQrValue(encrypted);
-      toast({
-        title: "Success!",
-        description: "Your secure QR code has been generated.",
-        className: "bg-accent text-accent-foreground",
-      });
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "An unknown error occurred.";
+    if (!navigator.geolocation) {
       toast({
         variant: "destructive",
-        title: "Generation Failed",
-        description: errorMessage,
+        title: "Geolocation Not Supported",
+        description: "Your browser does not support geolocation.",
       });
+      setIsGenerating(false);
+      return;
     }
-  }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const dataToEncrypt = {
+            data: values.jsonData,
+            location: {
+              lat: latitude,
+              long: longitude,
+            },
+          };
+
+          const encrypted = encryptData(dataToEncrypt);
+          setQrValue(encrypted);
+          toast({
+            title: "Success!",
+            description: "Your secure, location-aware QR code has been generated.",
+            className: "bg-accent text-accent-foreground",
+          });
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : "An unknown error occurred.";
+          toast({
+            variant: "destructive",
+            title: "Generation Failed",
+            description: errorMessage,
+          });
+        } finally {
+          setIsGenerating(false);
+        }
+      },
+      (error) => {
+        let description = "Could not fetch location. Please enable location services.";
+        if (error.code === error.PERMISSION_DENIED) {
+            description = "Location access was denied. You must allow location access to generate a geo-fenced QR code.";
+        }
+        toast({
+          variant: "destructive",
+          title: "Location Error",
+          description: description,
+        });
+        setIsGenerating(false);
+      },
+      { enableHighAccuracy: true }
+    );
+  };
 
   const handleDownload = () => {
     const originalCanvas =
@@ -199,13 +241,13 @@ export function QrGenerator() {
       <Card className="shadow-lg border-2 border-primary/10">
         <CardHeader className="text-center">
           <div className="mx-auto bg-primary/10 p-3 rounded-full w-fit">
-            <Wand2 className="w-8 h-8 text-primary" />
+            <MapPin className="w-8 h-8 text-primary" />
           </div>
           <CardTitle className="font-headline text-3xl mt-4">
-            Generate Secure QR Code
+            Generate Geo-Locked QR Code
           </CardTitle>
           <CardDescription className="text-lg">
-            Enter your data, and we'll encrypt it into a secure QR code.
+            Encrypt data into a QR code that can only be scanned at your current location.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -228,16 +270,19 @@ export function QrGenerator() {
                       />
                     </FormControl>
                     <FormDescription className="text-center">
-                      Your data is encrypted on your device before the QR code
-                      is generated.
+                      Your current location will be embedded and encrypted into the QR code.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" size="lg">
-                <Wand2 className="mr-2 h-5 w-5" />
-                Generate Code
+              <Button type="submit" className="w-full" size="lg" disabled={isGenerating}>
+                {isGenerating ? (
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                ) : (
+                    <Wand2 className="mr-2 h-5 w-5" />
+                )}
+                {isGenerating ? "Generating..." : "Generate Code"}
               </Button>
             </form>
           </Form>
