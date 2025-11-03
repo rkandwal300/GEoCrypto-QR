@@ -118,7 +118,7 @@ export function QrScanner() {
             console.error('Geolocation error:', geoError);
             const geoErrorMessage = 'Could not get your location. Please enable location services to verify the QR code.';
             setError(geoErrorMessage);
-            message.error(geoErrorMessage);
+message.error(geoErrorMessage);
             setIsLoading(false);
           },
           { enableHighAccuracy: true }
@@ -139,25 +139,25 @@ export function QrScanner() {
   };
 
   const startScanner = async () => {
-    setError(null);
+    if (!containerRef.current) return;
+    if (error) setError(null);
     if (scannedData) setScannedData(null);
-    setIsLoading(true);
     
+    setIsLoading(true);
+
     if (scannerRef.current && scannerRef.current.isScanning) {
       try {
         await scannerRef.current.stop();
       } catch (err) {
-        console.error("Failed to stop existing scanner before starting a new one.", err);
+        console.error("Failed to stop existing scanner.", err);
       }
     }
 
-    // Only create a new instance if one doesn't exist.
-    if (!scannerRef.current) {
-        scannerRef.current = new Html5Qrcode(readerId, {
-            verbose: false,
-            formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-        });
-    }
+    const html5QrCode = new Html5Qrcode(readerId, {
+        verbose: false,
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+    });
+    scannerRef.current = html5QrCode;
 
     const config = {
       fps: 10,
@@ -209,7 +209,7 @@ export function QrScanner() {
   };
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && containerRef.current && !scannerRef.current) {
+    if (typeof window !== 'undefined' && containerRef.current && !scannedData && !error) {
       startScanner();
     }
     
@@ -220,7 +220,7 @@ export function QrScanner() {
         });
       }
     };
-  }, [containerRef]);
+  }, [containerRef, scannedData, error]);
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -234,7 +234,7 @@ export function QrScanner() {
       setIsLoading(true);
       setIsScanningFile(true); 
 
-      // Use a temporary scanner instance for file scanning
+      // The div must be in the DOM for scanFile to work.
       const fileScanner = new Html5Qrcode(readerId, { verbose: false });
 
       try {
@@ -306,10 +306,9 @@ export function QrScanner() {
                   size="large"
                   icon={<ReloadOutlined />}
                   onClick={() => {
+                    scannerRef.current = null;
                     setScannedData(null);
                     setError(null);
-                    scannerRef.current = null;
-                    startScanner();
                   }}
                   style={{ width: '100%', marginTop: '16px' }}
                 >
@@ -323,7 +322,7 @@ export function QrScanner() {
     );
   }
 
-  const shouldShowScannerUI = !scannedData && !error;
+  const shouldShowScannerUI = !scannedData && (!error || isLoading);
 
   return (
     <>
@@ -348,21 +347,21 @@ export function QrScanner() {
                 tip={isLoading ? "Starting camera..." : null}
                 style={{ maxHeight: '100vh' }}
             >
-                {shouldShowScannerUI ? (
-                    <div id={readerId} ref={containerRef} style={{ width: '100%', height: '100%' }} />
-                ) : (
+                <div id={readerId} ref={containerRef} style={{ width: '100%', height: '100%', display: shouldShowScannerUI ? 'block' : 'none' }} />
+                
+                {error && !isLoading && (
                     <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20, background: 'rgba(0,0,0,0.8)', padding: '16px' }}>
                         <Alert
-                            message={error ? "Scan Failed" : "Camera Error"}
-                            description={error || 'An unknown error occurred.'}
+                            message={"Scan Failed"}
+                            description={error}
                             type="error"
                             showIcon
                             action={
                                 <Space direction="vertical" style={{ marginTop: 16, width: '100%' }}>
                                 <Button type="primary" onClick={() => {
-                                    setError(null);
                                     scannerRef.current = null;
-                                    startScanner();
+                                    setScannedData(null);
+                                    setError(null);
                                 }} style={{width: '100%'}}>
                                     Try Scanning Again
                                 </Button>
