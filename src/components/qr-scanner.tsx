@@ -292,7 +292,7 @@ export function QrScanner() {
           spinning={isLoading && !isScanningFile}
           indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />}
           tip={isLoading ? "Starting camera..." : null}
-          fullscreen
+          style={{ maxHeight: '100vh' }}
         >
           {error && (
             <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20, background: 'rgba(0,0,0,0.8)' }}>
@@ -316,9 +316,10 @@ export function QrScanner() {
             </div>
           )}
 
-          <div id={readerId} style={{ width: '100%', height: '100%' }} />
+          <div id={readerId} style={{ width: '100%', height: '100vh' }} />
 
-          <Footer style={{ position: 'absolute', bottom: 0, width: '100%', background: 'transparent', textAlign: 'center', padding: '24px' }}>
+        </Spin>
+        <Footer style={{ position: 'absolute', bottom: 0, width: '100%', background: 'transparent', textAlign: 'center', padding: '24px', zIndex: 10 }}>
             <input
               type="file"
               ref={fileInputRef}
@@ -337,8 +338,7 @@ export function QrScanner() {
             >
               Upload QR Code
             </Button>
-          </Footer>
-        </Spin>
+        </Footer>
       </Layout>
     </>
   );
