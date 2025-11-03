@@ -119,7 +119,10 @@ export function QrScanner() {
           },
           (geoError) => {
             console.error('Geolocation error:', geoError);
-            const geoErrorMessage = 'Could not get your location. Please enable location services to verify the QR code.';
+            let geoErrorMessage = 'Could not get your location. Please enable location services to verify the QR code.';
+            if (geoError.code === geoError.PERMISSION_DENIED) {
+              geoErrorMessage = "Location access was denied. You must allow location access in your browser settings to verify the QR code's location.";
+            }
             setError(geoErrorMessage);
             message.error(geoErrorMessage);
             setIsLoading(false);
@@ -186,14 +189,12 @@ export function QrScanner() {
       );
       setHasCameraPermission(true);
     } catch (err: any) {
-      let userMessage = 'Camera permission denied. Please grant camera access in your browser settings to use the scanner.';
+      let userMessage = 'Failed to start the camera. Please check permissions and ensure no other app is using it.';
       if (err.name === 'NotAllowedError') {
         userMessage = 'Camera access was denied. You\'ll need to grant permission in your browser settings to use the scanner.';
         setHasCameraPermission(false);
       } else if (err.message && err.message.includes('not found')) {
         userMessage = 'No suitable camera found on this device.';
-      } else {
-        userMessage = 'Failed to start the camera. Please check permissions and ensure no other app is using it.';
       }
       setError(userMessage);
       message.error(userMessage);

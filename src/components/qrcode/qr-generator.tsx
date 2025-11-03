@@ -116,7 +116,7 @@ export function QrGenerator() {
           "Could not fetch location. Please enable location services.";
         if (error.code === error.PERMISSION_DENIED) {
           description =
-            "Location access was denied. You must allow location access to generate a geo-fenced QR code.";
+            "Location access was denied. You must allow location access in your browser settings to generate a geo-fenced QR code.";
         }
         toast({
           variant: "destructive",
