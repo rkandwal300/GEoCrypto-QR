@@ -16,14 +16,45 @@ import { decryptData } from '@/lib/crypto';
 const { Header, Content, Footer } = Layout;
 const { Title, Text, Paragraph } = Typography;
 
-type ScannedDataType = {
+const MAX_ALLOWED_DISTANCE_METERS = 100;
+
+type DeviceLocation = {
+  lat: number;
+  long: number;
+  accuracy: number;
+};
+
+type QrCodeData = {
   data: any;
   location?: {
     lat: number;
     long: number;
-    accuracy: number;
   };
 };
+
+type ScannedDataType = {
+  qrData: QrCodeData;
+  deviceLocation?: DeviceLocation;
+  distance?: number;
+};
+
+/**
+ * Calculates the distance between two points on Earth in meters using the Haversine formula.
+ */
+function getDistanceInMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371e3; // Earth's radius in meters
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+}
 
 export function QrScanner() {
   const [scannedData, setScannedData] = useState<ScannedDataType | null>(null);
@@ -45,33 +76,53 @@ export function QrScanner() {
     setIsScanningFile(false);
 
     try {
-      const decrypted = decryptData(decodedText);
+      const decrypted = decryptData(decodedText) as QrCodeData;
+
+      if (!decrypted.location || typeof decrypted.location.lat !== 'number' || typeof decrypted.location.long !== 'number') {
+        throw new Error("QR code is missing valid location data.");
+      }
+      
+      const qrLocation = decrypted.location;
 
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (position) => {
-            setScannedData({
-              data: decrypted,
-              location: {
-                lat: position.coords.latitude,
-                long: position.coords.longitude,
-                accuracy: position.coords.accuracy,
-              },
-            });
-            message.success('QR code decrypted and location captured.');
+            const deviceLocation: DeviceLocation = {
+              lat: position.coords.latitude,
+              long: position.coords.longitude,
+              accuracy: position.coords.accuracy,
+            };
+
+            const distance = getDistanceInMeters(
+              qrLocation.lat,
+              qrLocation.long,
+              deviceLocation.lat,
+              deviceLocation.long
+            );
+
+            if (distance > MAX_ALLOWED_DISTANCE_METERS) {
+              const distanceError = `You are not at the required location. You are ~${distance.toFixed(0)} meters away.`;
+              setError(distanceError);
+              message.error(distanceError);
+              setIsLoading(false);
+              return;
+            }
+
+            setScannedData({ qrData: decrypted, deviceLocation, distance });
+            message.success('QR code decrypted and location verified.');
             setIsLoading(false);
           },
           (geoError) => {
             console.error('Geolocation error:', geoError);
-            setScannedData({ data: decrypted }); // Still show decrypted data
-            message.warning('Could not get location. Displaying QR data only.');
+            setError('Could not get your location. Please enable location services.');
+            message.error('Could not get your location. Please enable location services.');
             setIsLoading(false);
           },
           { enableHighAccuracy: true }
         );
       } else {
-        setScannedData({ data: decrypted });
-        message.success('QR code decrypted. Geolocation not supported.');
+        setError("Geolocation is not supported by your browser.");
+        message.error("Geolocation is not supported by your browser.");
         setIsLoading(false);
       }
     } catch (e: any) {
@@ -184,7 +235,6 @@ export function QrScanner() {
       setIsLoading(true);
       setIsScanningFile(true); // Keep the reader element visible
 
-      // Use a new scanner instance for file scanning to avoid state conflicts
       const fileScanner = new Html5Qrcode(readerId, { verbose: false });
 
       try {
@@ -225,20 +275,21 @@ export function QrScanner() {
                   <Title level={4}>Decrypted Data</Title>
                   <Card style={{ background: '#f5f5f5', marginTop: '8px' }}>
                     <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', margin: 0, fontFamily: 'monospace' }}>
-                      {typeof scannedData.data.data === 'string'
-                        ? scannedData.data.data
-                        : JSON.stringify(scannedData.data.data, null, 2)}
+                      {typeof scannedData.qrData.data === 'string'
+                        ? scannedData.qrData.data
+                        : JSON.stringify(scannedData.qrData.data, null, 2)}
                     </pre>
                   </Card>
                 </div>
 
-                {scannedData.location && (
+                {scannedData.deviceLocation && (
                   <Flex vertical gap="middle">
                     <Title level={4}><EnvironmentOutlined style={{ marginRight: 8, color: '#1890ff' }} />Location Captured</Title>
                     <Card style={{ background: '#f5f5f5' }}>
-                       <p><Text strong>Latitude:</Text> {scannedData.location.lat}</p>
-                       <p><Text strong>Longitude:</Text> {scannedData.location.long}</p>
-                       <p><Text strong>Accuracy:</Text> {scannedData.location.accuracy.toFixed(2)} meters</p>
+                       <p><Text strong>Latitude:</Text> {scannedData.deviceLocation.lat}</p>
+                       <p><Text strong>Longitude:</Text> {scannedData.deviceLocation.long}</p>
+                       <p><Text strong>Accuracy:</Text> {scannedData.deviceLocation.accuracy.toFixed(2)} meters</p>
+                       <p><Text strong>Distance from QR Target:</Text> {scannedData.distance?.toFixed(2)} meters</p>
                     </Card>
                     <div style={{ aspectRatio: '16/9', width: '100%', borderRadius: 8, overflow: 'hidden', border: '1px solid #e8e8e8' }}>
                       <iframe
@@ -246,7 +297,7 @@ export function QrScanner() {
                         height="100%"
                         loading="lazy"
                         allowFullScreen
-                        src={`https://www.openstreetmap.org/export/embed.html?bbox=${scannedData.location.long - 0.005}%2C${scannedData.location.lat - 0.005}%2C${scannedData.location.long + 0.005}%2C${scannedData.location.lat + 0.005}&layer=mapnik&marker=${scannedData.location.lat}%2C${scannedData.location.long}`}
+                        src={`https://www.openstreetmap.org/export/embed.html?bbox=${scannedData.deviceLocation.long - 0.005}%2C${scannedData.deviceLocation.lat - 0.005}%2C${scannedData.deviceLocation.long + 0.005}%2C${scannedData.deviceLocation.lat + 0.005}&layer=mapnik&marker=${scannedData.deviceLocation.lat}%2C${scannedData.deviceLocation.long}`}
                       ></iframe>
                     </div>
                   </Flex>
@@ -292,17 +343,17 @@ export function QrScanner() {
           spinning={isLoading && !isScanningFile}
           indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />}
           tip={isLoading ? "Starting camera..." : null}
-          style={{ maxHeight: '100vh' }}
+          style={{ maxHeight: '100vh', height: '100%' }}
         >
           {error && (
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20, background: 'rgba(0,0,0,0.8)' }}>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20, background: 'rgba(0,0,0,0.8)', padding: '16px' }}>
               <Alert
                 message="Scanner Error"
                 description={error}
                 type="error"
                 showIcon
                 action={
-                  <Space direction="vertical">
+                  <Space direction="vertical" style={{ marginTop: 16 }}>
                     <Button type="primary" onClick={startScanner}>
                       Try Camera Again
                     </Button>
@@ -316,7 +367,7 @@ export function QrScanner() {
             </div>
           )}
 
-          <div id={readerId} style={{ width: '100%', height: '100vh' }} />
+          <div id={readerId} style={{ width: '100%', height: '100%' }} />
 
         </Spin>
         <Footer style={{ position: 'absolute', bottom: 0, width: '100%', background: 'transparent', textAlign: 'center', padding: '24px', zIndex: 10 }}>
