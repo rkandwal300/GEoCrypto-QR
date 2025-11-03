@@ -65,6 +65,7 @@ export function QrScanner() {
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const readerId = 'qr-code-reader-video';
 
   const processDecodedText = (decodedText: string) => {
@@ -142,12 +143,6 @@ export function QrScanner() {
     if (scannedData) setScannedData(null);
     setIsLoading(true);
     
-    // Ensure the container is ready
-    if (!document.getElementById(readerId)) {
-      setTimeout(startScanner, 100);
-      return;
-    }
-    
     if (scannerRef.current && scannerRef.current.isScanning) {
       try {
         await scannerRef.current.stop();
@@ -214,8 +209,7 @@ export function QrScanner() {
   };
 
   useEffect(() => {
-    // Only run on client
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && containerRef.current && !scannerRef.current) {
       startScanner();
     }
     
@@ -226,8 +220,7 @@ export function QrScanner() {
         });
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [containerRef]);
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -314,6 +307,8 @@ export function QrScanner() {
                   icon={<ReloadOutlined />}
                   onClick={() => {
                     setScannedData(null);
+                    setError(null);
+                    scannerRef.current = null;
                     startScanner();
                   }}
                   style={{ width: '100%', marginTop: '16px' }}
@@ -346,36 +341,42 @@ export function QrScanner() {
         }
       `}</style>
       <Layout style={{ position: 'fixed', inset: 0, background: '#000' }}>
-        {shouldShowScannerUI ? (
-          <Spin
-            spinning={isLoading}
-            indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />}
-            tip={isLoading ? "Starting camera..." : null}
-            style={{ maxHeight: '100vh', height: '100%' }}
-          >
-            <div id={readerId} style={{ width: '100%', height: '100%' }} />
-          </Spin>
-        ) : (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20, background: 'rgba(0,0,0,0.8)', padding: '16px' }}>
-            <Alert
-              message={error ? "Scan Failed" : "Camera Error"}
-              description={error || 'An unknown error occurred.'}
-              type="error"
-              showIcon
-              action={
-                <Space direction="vertical" style={{ marginTop: 16, width: '100%' }}>
-                  <Button type="primary" onClick={startScanner} style={{width: '100%'}}>
-                    Scan Again
-                  </Button>
-                  <Button onClick={() => fileInputRef.current?.click()} style={{width: '100%'}}>
-                    Upload File Instead
-                  </Button>
-                </Space>
-              }
-              style={{ maxWidth: '400px', width: '100%' }}
-            />
-          </div>
-        )}
+        <Content style={{ height: '100%' }}>
+            <Spin
+                spinning={isLoading}
+                indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />}
+                tip={isLoading ? "Starting camera..." : null}
+                style={{ maxHeight: '100vh' }}
+            >
+                {shouldShowScannerUI ? (
+                    <div id={readerId} ref={containerRef} style={{ width: '100%', height: '100%' }} />
+                ) : (
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20, background: 'rgba(0,0,0,0.8)', padding: '16px' }}>
+                        <Alert
+                            message={error ? "Scan Failed" : "Camera Error"}
+                            description={error || 'An unknown error occurred.'}
+                            type="error"
+                            showIcon
+                            action={
+                                <Space direction="vertical" style={{ marginTop: 16, width: '100%' }}>
+                                <Button type="primary" onClick={() => {
+                                    setError(null);
+                                    scannerRef.current = null;
+                                    startScanner();
+                                }} style={{width: '100%'}}>
+                                    Try Scanning Again
+                                </Button>
+                                <Button onClick={() => fileInputRef.current?.click()} style={{width: '100%'}}>
+                                    Upload File Instead
+                                </Button>
+                                </Space>
+                            }
+                            style={{ maxWidth: '400px', width: '100%' }}
+                        />
+                    </div>
+                )}
+            </Spin>
+        </Content>
         
         <Footer style={{ position: 'absolute', bottom: 0, width: '100%', background: 'transparent', textAlign: 'center', padding: '24px', zIndex: 10, visibility: shouldShowScannerUI ? 'visible' : 'hidden' }}>
             <input
@@ -401,5 +402,3 @@ export function QrScanner() {
     </>
   );
 }
-
-    
