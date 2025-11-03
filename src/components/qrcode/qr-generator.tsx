@@ -1,39 +1,32 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import QRCode from "qrcode.react";
 import {
-  ArrowDownload24Regular,
-  Share24Regular,
-  Sparkle24Regular,
-  Location24Regular,
-  ArrowSync24Regular,
-} from "@fluentui/react-icons";
-
-import { Button } from "@/components/ui/button";
+  DownloadOutlined,
+  ShareAltOutlined,
+  ExperimentOutlined,
+  EnvironmentOutlined,
+  LoadingOutlined,
+} from "@ant-design/icons";
 import {
+  Button,
   Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
+  Input,
+  message,
+  Typography,
+  Space,
+  Tooltip,
+  Flex,
+} from "antd";
 import { encryptData } from "@/lib/crypto";
+
+const { Title, Text } = Typography;
+const { TextArea } = Input;
 
 const formSchema = z.object({
   jsonData: z.string().min(1, "Input data cannot be empty."),
@@ -42,10 +35,14 @@ const formSchema = z.object({
 export function QrGenerator() {
   const [qrValue, setQrValue] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const { toast } = useToast();
   const qrCodeRef = useRef<HTMLDivElement>(null);
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    formState: { errors },
+  } = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       jsonData: "",
@@ -53,7 +50,7 @@ export function QrGenerator() {
   });
 
   const handleDataChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    form.setValue("jsonData", e.target.value, { shouldValidate: true });
+    setValue("jsonData", e.target.value, { shouldValidate: true });
     if (qrValue) {
       setQrValue(null);
     }
@@ -62,17 +59,16 @@ export function QrGenerator() {
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     setIsGenerating(true);
     setQrValue(null);
-    toast({
-      title: "Getting Location...",
-      description: "Please wait while we fetch your current location.",
+    message.loading({
+      content: "Getting Location...",
+      key: "loc",
+      duration: 0,
     });
 
     if (!navigator.geolocation) {
-      toast({
-        variant: "destructive",
-        title: "Geolocation Not Supported",
-        description: "Your browser does not support geolocation.",
-      });
+      message.error(
+        "Your browser does not support geolocation."
+      );
       setIsGenerating(false);
       return;
     }
@@ -91,24 +87,19 @@ export function QrGenerator() {
 
           const encrypted = encryptData(dataToEncrypt);
           setQrValue(encrypted);
-          toast({
-            title: "Success!",
-            description:
-              "Your secure, location-aware QR code has been generated.",
-            className: "bg-accent text-accent-foreground",
+          message.success({
+            content: "Your secure, location-aware QR code has been generated.",
+            key: "loc",
           });
         } catch (error) {
           const errorMessage =
             error instanceof Error
               ? error.message
               : "An unknown error occurred.";
-          toast({
-            variant: "destructive",
-            title: "Generation Failed",
-            description: errorMessage,
-          });
+          message.error(`Generation Failed: ${errorMessage}`);
         } finally {
           setIsGenerating(false);
+          message.destroy("loc");
         }
       },
       (error) => {
@@ -118,12 +109,9 @@ export function QrGenerator() {
           description =
             "Location access was denied. You must allow location access in your browser settings to generate a geo-fenced QR code.";
         }
-        toast({
-          variant: "destructive",
-          title: "Location Error",
-          description: description,
-        });
+        message.error(`Location Error: ${description}`);
         setIsGenerating(false);
+        message.destroy("loc");
       },
       { enableHighAccuracy: true }
     );
@@ -133,11 +121,7 @@ export function QrGenerator() {
     const originalCanvas =
       qrCodeRef.current?.querySelector<HTMLCanvasElement>("canvas");
     if (!originalCanvas || !qrValue) {
-      toast({
-        variant: "destructive",
-        title: "Download failed",
-        description: "Could not find the QR code canvas.",
-      });
+      message.error("Could not find the QR code canvas.");
       return;
     }
 
@@ -151,25 +135,15 @@ export function QrGenerator() {
     const ctx = downloadCanvas.getContext("2d");
 
     if (!ctx) {
-      toast({
-        variant: "destructive",
-        title: "Download failed",
-        description: "Could not create a canvas for downloading.",
-      });
+      message.error("Could not create a canvas for downloading.");
       return;
     }
 
-    // Fill background with white
     ctx.fillStyle = "#FFFFFF";
     ctx.fillRect(0, 0, downloadSize, downloadSize);
-
-    // Disable image smoothing to keep QR code sharp when scaling
     ctx.imageSmoothingEnabled = false;
-
-    // Draw the original QR code canvas onto the new canvas, centered with padding
     ctx.drawImage(originalCanvas, padding, padding, innerSize, innerSize);
 
-    // Trigger download
     const link = document.createElement("a");
     link.href = downloadCanvas.toDataURL("image/png");
     link.download = "geocrypt-qrcode.png";
@@ -177,48 +151,18 @@ export function QrGenerator() {
     link.click();
     document.body.removeChild(link);
 
-    toast({
-      title: "Download started",
-      description: "Your QR code is being downloaded.",
-    });
-  };
-
-  const shareQrCode = async (qrFile: File) => {
-    try {
-      await navigator.share({
-        files: [qrFile],
-      });
-    } catch (error: any) {
-      if (
-        error.name !== "AbortError" &&
-        error.name !== "PermissionDeniedError"
-      ) {
-        toast({
-          variant: "destructive",
-          title: "Share failed",
-          description: error.message || "Could not share the QR code.",
-        });
-      } else if (error.name === "PermissionDeniedError") {
-        toast({
-          variant: "destructive",
-          title: "Share Permission Denied",
-          description: "Permission to share was denied by the user.",
-        });
-      }
-    }
+    message.success("Download started!");
   };
 
   const handleShareClick = async () => {
     const canvas =
       qrCodeRef.current?.querySelector<HTMLCanvasElement>("canvas");
     if (!canvas || !navigator.share) {
-      toast({
-        variant: "destructive",
-        title: "Share not available",
-        description: !canvas
+      message.error(
+        !canvas
           ? "QR code not found."
-          : "Web Share API is not supported on this browser.",
-      });
+          : "Web Share API is not supported on this browser."
+      );
       return;
     }
 
@@ -227,113 +171,139 @@ export function QrGenerator() {
         canvas.toBlob(resolve, "image/png")
       );
       if (!blob) {
-        toast({
-          variant: "destructive",
-          title: "Share failed",
-          description: "Failed to create image from QR code.",
-        });
+        message.error("Failed to create image from QR code.");
         return;
       }
       const file = new File([blob], "geocrypt-qrcode.png", {
         type: "image/png",
       });
-      await shareQrCode(file);
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Share failed",
-        description: "An unexpected error occurred while preparing the share.",
+      
+      await navigator.share({
+        files: [file],
       });
+
+    } catch (error: any) {
+      if (error.name !== "AbortError") {
+         message.error(`Share failed: ${error.message || "Could not share the QR code."}`);
+      }
     }
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto p-4 md:p-6">
-      <Card className="shadow-lg border-2 border-primary/10">
-        <CardHeader className="text-center">
-          <div className="mx-auto bg-primary/10 p-3 rounded-full w-fit">
-            <Location24Regular className="w-8 h-8 text-primary" />
+    <div style={{ width: '100%', maxWidth: '800px', margin: '0 auto', padding: '16px' }}>
+      <Card
+        style={{
+          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+          border: '1px solid #f0f0f0',
+        }}
+      >
+        <Flex vertical align="center" gap="middle" style={{ padding: '24px' }}>
+          <div
+            style={{
+              backgroundColor: 'rgba(24, 144, 255, 0.1)',
+              padding: '12px',
+              borderRadius: '50%',
+            }}
+          >
+            <EnvironmentOutlined
+              style={{ fontSize: '32px', color: '#1890ff' }}
+            />
           </div>
-          <CardTitle className="font-headline text-3xl mt-4">
+          <Title level={2} style={{ marginTop: 0, textAlign: 'center' }}>
             Generate Geo-Locked QR Code
-          </CardTitle>
-          <CardDescription className="text-lg">
+          </Title>
+          <Text type="secondary" style={{ textAlign: 'center' }}>
             Encrypt data into a QR code that can only be scanned at your
             current location.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
+          </Text>
+        </Flex>
+
+        <div style={{ padding: '0 24px 24px' }}>
+          <Form onFinish={handleSubmit(onSubmit)} layout="vertical">
+            <Form.Item
+              label="Data Payload"
+              validateStatus={errors.jsonData ? "error" : ""}
+              help={errors.jsonData?.message}
+            >
+              <Controller
                 name="jsonData"
+                control={control}
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-lg sr-only">
-                      Data Payload
-                    </FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Enter any text or data you want to encrypt..."
-                        className="min-h-[200px] font-code text-base bg-muted/50 focus-visible:ring-primary focus-visible:ring-2"
-                        {...field}
-                        onChange={handleDataChange}
-                      />
-                    </FormControl>
-                    <FormDescription className="text-center">
-                      Your current location will be embedded and encrypted into
-                      the QR code.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
+                  <TextArea
+                    {...field}
+                    placeholder="Enter any text or data you want to encrypt..."
+                    rows={6}
+                    onChange={handleDataChange}
+                    style={{ fontFamily: "monospace" }}
+                  />
                 )}
               />
+               <Text type="secondary" style={{ textAlign: 'center', display: 'block', marginTop: 8 }}>
+                Your current location will be embedded and encrypted into the QR code.
+              </Text>
+            </Form.Item>
+
+            <Form.Item>
               <Button
-                type="submit"
-                className="w-full"
-                size="lg"
-                disabled={isGenerating}
+                type="primary"
+                htmlType="submit"
+                block
+                size="large"
+                loading={isGenerating}
+                icon={
+                  isGenerating ? <LoadingOutlined /> : <ExperimentOutlined />
+                }
               >
-                {isGenerating ? (
-                  <ArrowSync24Regular className="mr-2 h-5 w-5 animate-spin" />
-                ) : (
-                  <Sparkle24Regular className="mr-2 h-5 w-5" />
-                )}
                 {isGenerating ? "Generating..." : "Generate Code"}
               </Button>
-            </form>
+            </Form.Item>
           </Form>
-        </CardContent>
+        </div>
+
         {qrValue && (
-          <CardFooter className="flex flex-col items-center gap-6 pt-6 border-t mt-6">
-            <div
-              ref={qrCodeRef}
-              className="p-4 bg-white rounded-xl shadow-md"
-              aria-label="Generated QR Code"
-            >
-              <QRCode
-                value={qrValue}
-                size={256}
-                level="H"
-                bgColor="#ffffff"
-                fgColor="#000000"
-                renderAs="canvas"
-              />
-            </div>
-            <div className="flex flex-wrap justify-center gap-4">
-              <Button onClick={handleDownload} variant="outline" size="lg">
-                <ArrowDownload24Regular className="mr-2 h-5 w-5" />
-                Download
-              </Button>
-              {navigator.share && (
-                <Button onClick={handleShareClick} size="lg">
-                  <Share24Regular className="mr-2 h-5 w-5" />
-                  Share
+          <div style={{ padding: '24px', borderTop: '1px solid #f0f0f0', backgroundColor: '#fafafa' }}>
+            <Flex vertical align="center" gap="large">
+              <div
+                ref={qrCodeRef}
+                style={{
+                  padding: '16px',
+                  backgroundColor: 'white',
+                  borderRadius: '8px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.09)',
+                }}
+                aria-label="Generated QR Code"
+              >
+                <QRCode
+                  value={qrValue}
+                  size={256}
+                  level="H"
+                  bgColor="#ffffff"
+                  fgColor="#000000"
+                  renderAs="canvas"
+                />
+              </div>
+              <Space wrap style={{ justifyContent: 'center' }}>
+                <Button
+                  onClick={handleDownload}
+                  icon={<DownloadOutlined />}
+                  size="large"
+                >
+                  Download
                 </Button>
-              )}
-            </div>
-          </CardFooter>
+                {navigator.share && (
+                  <Button
+                    onClick={handleShareClick}
+                    icon={<ShareAltOutlined />}
+                    size="large"
+                    type="primary"
+                    ghost
+                  >
+                    Share
+                  </Button>
+                )}
+              </Space>
+            </Flex>
+          </div>
         )}
       </Card>
     </div>
