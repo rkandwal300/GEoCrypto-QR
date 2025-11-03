@@ -68,9 +68,13 @@ export function QrScanner() {
   const containerRef = useRef<HTMLDivElement>(null);
   const readerId = 'qr-code-reader-video';
 
-  const processDecodedText = (decodedText: string) => {
+  const processDecodedText = async (decodedText: string) => {
     if (scannerRef.current && scannerRef.current.isScanning) {
-      scannerRef.current.stop().catch((err) => console.log('Error stopping scanner', err));
+      try {
+        await scannerRef.current.stop();
+      } catch (err) {
+        console.error('Error stopping scanner during processing', err);
+      }
     }
     setIsLoading(true);
     setError(null);
@@ -215,14 +219,19 @@ message.error(geoErrorMessage);
     }
     
     return () => {
-      if (scannerRef.current?.isScanning) {
-        scannerRef.current.stop().catch((err) => {
-          console.error('Failed to stop the scanner on cleanup.', err);
-        });
-      }
+      const stopScanner = async () => {
+        if (scannerRef.current?.isScanning) {
+          try {
+            await scannerRef.current.stop();
+          } catch (err) {
+            console.error('Failed to stop the scanner on cleanup.', err);
+          }
+        }
+      };
+      stopScanner();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [containerRef.current, scannedData, error]);
+  }, [containerRef, scannedData, error]);
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -241,7 +250,7 @@ message.error(geoErrorMessage);
 
       try {
         const decodedText = await fileScanner.scanFile(file, false);
-        processDecodedText(decodedText);
+        await processDecodedText(decodedText);
       } catch (err: any) {
         const errorMessage = 'Could not scan the QR code from the image. Please try a different file.';
         setError(errorMessage);
