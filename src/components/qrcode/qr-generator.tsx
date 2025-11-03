@@ -5,7 +5,13 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import QRCode from "qrcode.react";
-import { Download, Share2, Wand2, MapPin, Loader2 } from "lucide-react";
+import {
+  ArrowDownload24Regular,
+  Share24Regular,
+  Sparkle24Regular,
+  Location24Regular,
+  ArrowSync24Regular,
+} from "@fluentui/react-icons";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -57,8 +63,8 @@ export function QrGenerator() {
     setIsGenerating(true);
     setQrValue(null);
     toast({
-        title: "Getting Location...",
-        description: "Please wait while we fetch your current location.",
+      title: "Getting Location...",
+      description: "Please wait while we fetch your current location.",
     });
 
     if (!navigator.geolocation) {
@@ -87,12 +93,15 @@ export function QrGenerator() {
           setQrValue(encrypted);
           toast({
             title: "Success!",
-            description: "Your secure, location-aware QR code has been generated.",
+            description:
+              "Your secure, location-aware QR code has been generated.",
             className: "bg-accent text-accent-foreground",
           });
         } catch (error) {
           const errorMessage =
-            error instanceof Error ? error.message : "An unknown error occurred.";
+            error instanceof Error
+              ? error.message
+              : "An unknown error occurred.";
           toast({
             variant: "destructive",
             title: "Generation Failed",
@@ -103,9 +112,11 @@ export function QrGenerator() {
         }
       },
       (error) => {
-        let description = "Could not fetch location. Please enable location services.";
+        let description =
+          "Could not fetch location. Please enable location services.";
         if (error.code === error.PERMISSION_DENIED) {
-            description = "Location access was denied. You must allow location access to generate a geo-fenced QR code.";
+          description =
+            "Location access was denied. You must allow location access to generate a geo-fenced QR code.";
         }
         toast({
           variant: "destructive",
@@ -131,7 +142,7 @@ export function QrGenerator() {
     }
 
     const downloadSize = 1024;
-    const padding = downloadSize * 0.1; 
+    const padding = downloadSize * 0.1;
     const innerSize = downloadSize - padding * 2;
 
     const downloadCanvas = document.createElement("canvas");
@@ -151,7 +162,7 @@ export function QrGenerator() {
     // Fill background with white
     ctx.fillStyle = "#FFFFFF";
     ctx.fillRect(0, 0, downloadSize, downloadSize);
-    
+
     // Disable image smoothing to keep QR code sharp when scaling
     ctx.imageSmoothingEnabled = false;
 
@@ -198,7 +209,8 @@ export function QrGenerator() {
   };
 
   const handleShareClick = async () => {
-    const canvas = qrCodeRef.current?.querySelector<HTMLCanvasElement>("canvas");
+    const canvas =
+      qrCodeRef.current?.querySelector<HTMLCanvasElement>("canvas");
     if (!canvas || !navigator.share) {
       toast({
         variant: "destructive",
@@ -240,13 +252,14 @@ export function QrGenerator() {
       <Card className="shadow-lg border-2 border-primary/10">
         <CardHeader className="text-center">
           <div className="mx-auto bg-primary/10 p-3 rounded-full w-fit">
-            <MapPin className="w-8 h-8 text-primary" />
+            <Location24Regular className="w-8 h-8 text-primary" />
           </div>
           <CardTitle className="font-headline text-3xl mt-4">
             Generate Geo-Locked QR Code
           </CardTitle>
           <CardDescription className="text-lg">
-            Encrypt data into a QR code that can only be scanned at your current location.
+            Encrypt data into a QR code that can only be scanned at your
+            current location.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -262,24 +275,30 @@ export function QrGenerator() {
                     </FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder='Enter any text or data you want to encrypt...'
+                        placeholder="Enter any text or data you want to encrypt..."
                         className="min-h-[200px] font-code text-base bg-muted/50 focus-visible:ring-primary focus-visible:ring-2"
                         {...field}
                         onChange={handleDataChange}
                       />
                     </FormControl>
                     <FormDescription className="text-center">
-                      Your current location will be embedded and encrypted into the QR code.
+                      Your current location will be embedded and encrypted into
+                      the QR code.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" size="lg" disabled={isGenerating}>
+              <Button
+                type="submit"
+                className="w-full"
+                size="lg"
+                disabled={isGenerating}
+              >
                 {isGenerating ? (
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  <ArrowSync24Regular className="mr-2 h-5 w-5 animate-spin" />
                 ) : (
-                    <Wand2 className="mr-2 h-5 w-5" />
+                  <Sparkle24Regular className="mr-2 h-5 w-5" />
                 )}
                 {isGenerating ? "Generating..." : "Generate Code"}
               </Button>
@@ -304,12 +323,12 @@ export function QrGenerator() {
             </div>
             <div className="flex flex-wrap justify-center gap-4">
               <Button onClick={handleDownload} variant="outline" size="lg">
-                <Download className="mr-2 h-5 w-5" />
+                <ArrowDownload24Regular className="mr-2 h-5 w-5" />
                 Download
               </Button>
               {navigator.share && (
                 <Button onClick={handleShareClick} size="lg">
-                  <Share2 className="mr-2 h-5 w-5" />
+                  <Share24Regular className="mr-2 h-5 w-5" />
                   Share
                 </Button>
               )}
