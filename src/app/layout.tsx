@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
 import { Header } from "@/components/header";
-import { cn } from "@/lib/utils";
+import { AntdRegistry } from "@/lib/AntdRegistry";
 
 export const metadata: Metadata = {
   title: "GeoCrypt QR",
@@ -31,14 +30,15 @@ export default function RootLayout({
         <meta name="theme-color" content="#3AB0FF" />
       </head>
       <body
-        className={cn("font-body antialiased min-h-screen flex flex-col")}
+        className="font-sans antialiased min-h-screen flex flex-col"
         suppressHydrationWarning
       >
-        <Header />
-        <main className="flex-1 flex flex-col items-center justify-start p-4 sm:p-6 lg:p-8">
-          {children}
-        </main>
-        <Toaster />
+        <AntdRegistry>
+            <Header />
+            <main className="flex-1 pt-2">
+              {children}
+            </main>
+        </AntdRegistry>
       </body>
     </html>
   );
