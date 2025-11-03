@@ -306,7 +306,7 @@ message.error(geoErrorMessage);
                         height="100%"
                         loading="lazy"
                         allowFullScreen
-                        src={`https://www.openstreetmap.org/export/embed.html?bbox=${scannedData.deviceLocation.long - 0.005}%2C${scannedData.deviceLocation.lat - 0.005}%2C${scannedData.deviceLocation.long + 0.005}%2C${scannedData.deviceLocation.lat + 0.005}&layer=mapnik&marker=${scannedData.deviceLocation.lat}%2C${scannedData.deviceLocation.long}`}
+                        src={`https://www.openstreetmap.org/export/embed.html?bbox=${scannedData.qrData.location.long - 0.005}%2C${scannedData.qrData.location.lat - 0.005}%2C${scannedData.qrData.location.long + 0.005}%2C${scannedData.qrData.location.lat + 0.005}&layer=mapnik&marker=${scannedData.qrData.location.lat}%2C${scannedData.qrData.location.long}`}
                       ></iframe>
                     </div>
                   </Flex>
