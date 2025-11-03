@@ -73,6 +73,7 @@ export function QrScanner() {
     }
     setIsLoading(true);
     setError(null);
+    setScannedData(null);
     setIsScanningFile(false);
 
     try {
@@ -114,15 +115,17 @@ export function QrScanner() {
           },
           (geoError) => {
             console.error('Geolocation error:', geoError);
-            setError('Could not get your location. Please enable location services.');
-            message.error('Could not get your location. Please enable location services.');
+            const geoErrorMessage = 'Could not get your location. Please enable location services to verify the QR code.';
+            setError(geoErrorMessage);
+            message.error(geoErrorMessage);
             setIsLoading(false);
           },
           { enableHighAccuracy: true }
         );
       } else {
-        setError("Geolocation is not supported by your browser.");
-        message.error("Geolocation is not supported by your browser.");
+        const noGeoMessage = "Geolocation is not supported by your browser.";
+        setError(noGeoMessage);
+        message.error(noGeoMessage);
         setIsLoading(false);
       }
     } catch (e: any) {
@@ -153,10 +156,13 @@ export function QrScanner() {
       }
     }
 
-    scannerRef.current = new Html5Qrcode(readerId, {
-      verbose: false,
-      formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-    });
+    // Only create a new instance if one doesn't exist.
+    if (!scannerRef.current) {
+        scannerRef.current = new Html5Qrcode(readerId, {
+            verbose: false,
+            formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+        });
+    }
 
     const config = {
       fps: 10,
@@ -233,8 +239,9 @@ export function QrScanner() {
       setScannedData(null);
       setError(null);
       setIsLoading(true);
-      setIsScanningFile(true); // Keep the reader element visible
+      setIsScanningFile(true); 
 
+      // Use a temporary scanner instance for file scanning
       const fileScanner = new Html5Qrcode(readerId, { verbose: false });
 
       try {
@@ -245,10 +252,8 @@ export function QrScanner() {
         setError(errorMessage);
         message.error(errorMessage);
         setIsLoading(false);
-        setIsScanningFile(false);
-        // If file scan fails, try to restart the camera scanner
-        startScanner();
       } finally {
+        setIsScanningFile(false);
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
@@ -258,7 +263,7 @@ export function QrScanner() {
 
   if (scannedData) {
     return (
-      <Layout style={{ minHeight: '100%', padding: '24px' }}>
+      <Layout style={{ minHeight: '100%', padding: '24px', background: '#f0f2f5' }}>
         <Content>
           <Flex justify="center" align="start">
             <Card
@@ -323,6 +328,8 @@ export function QrScanner() {
     );
   }
 
+  const shouldShowScannerUI = !scannedData && !error;
+
   return (
     <>
       <style jsx global>{`
@@ -339,38 +346,38 @@ export function QrScanner() {
         }
       `}</style>
       <Layout style={{ position: 'fixed', inset: 0, background: '#000' }}>
-         <Spin
-          spinning={isLoading && !isScanningFile}
-          indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />}
-          tip={isLoading ? "Starting camera..." : null}
-          style={{ maxHeight: '100vh', height: '100%' }}
-        >
-          {error && (
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20, background: 'rgba(0,0,0,0.8)', padding: '16px' }}>
-              <Alert
-                message="Scanner Error"
-                description={error}
-                type="error"
-                showIcon
-                action={
-                  <Space direction="vertical" style={{ marginTop: 16 }}>
-                    <Button type="primary" onClick={startScanner}>
-                      Try Camera Again
-                    </Button>
-                     <Button onClick={() => fileInputRef.current?.click()}>
-                      Upload File Instead
-                    </Button>
-                  </Space>
-                }
-                style={{ maxWidth: '400px' }}
-              />
-            </div>
-          )}
-
-          <div id={readerId} style={{ width: '100%', height: '100%' }} />
-
-        </Spin>
-        <Footer style={{ position: 'absolute', bottom: 0, width: '100%', background: 'transparent', textAlign: 'center', padding: '24px', zIndex: 10 }}>
+        {shouldShowScannerUI ? (
+          <Spin
+            spinning={isLoading}
+            indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />}
+            tip={isLoading ? "Starting camera..." : null}
+            style={{ maxHeight: '100vh', height: '100%' }}
+          >
+            <div id={readerId} style={{ width: '100%', height: '100%' }} />
+          </Spin>
+        ) : (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20, background: 'rgba(0,0,0,0.8)', padding: '16px' }}>
+            <Alert
+              message={error ? "Scan Failed" : "Camera Error"}
+              description={error || 'An unknown error occurred.'}
+              type="error"
+              showIcon
+              action={
+                <Space direction="vertical" style={{ marginTop: 16, width: '100%' }}>
+                  <Button type="primary" onClick={startScanner} style={{width: '100%'}}>
+                    Scan Again
+                  </Button>
+                  <Button onClick={() => fileInputRef.current?.click()} style={{width: '100%'}}>
+                    Upload File Instead
+                  </Button>
+                </Space>
+              }
+              style={{ maxWidth: '400px', width: '100%' }}
+            />
+          </div>
+        )}
+        
+        <Footer style={{ position: 'absolute', bottom: 0, width: '100%', background: 'transparent', textAlign: 'center', padding: '24px', zIndex: 10, visibility: shouldShowScannerUI ? 'visible' : 'hidden' }}>
             <input
               type="file"
               ref={fileInputRef}
@@ -394,3 +401,5 @@ export function QrScanner() {
     </>
   );
 }
+
+    
