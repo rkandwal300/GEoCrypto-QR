@@ -7,7 +7,6 @@ import {
   Scan24Regular,
   Chat24Regular,
 } from "@fluentui/react-icons";
-import { cn } from "@/lib/utils";
 
 export function Header() {
   const pathname = usePathname();
@@ -34,12 +33,11 @@ export function Header() {
             <Link
               key={item.href}
               href={item.href}
-              className={cn(
-                "transition-colors hover:text-primary px-4 py-2 rounded-lg text-base font-medium flex items-center gap-2",
+              className={`transition-colors hover:text-primary px-4 py-2 rounded-lg text-base font-medium flex items-center gap-2 ${
                 pathname === item.href
                   ? "text-primary bg-accent"
                   : "text-muted-foreground"
-              )}
+              }`}
             >
               {item.icon}
               {item.label}
