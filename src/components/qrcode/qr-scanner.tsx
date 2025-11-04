@@ -45,7 +45,7 @@ export function QrScanner() {
     try {
       const decrypted = decrypt(decodedText);
       if (!decrypted) {
-        throw new Error('Decryption failed. The QR code may be invalid.');
+        throw new Error('Decryption failed. This might be because the QR code is invalid, from a different system, or the encryption key has changed.');
       }
 
       const parsed = JSON.parse(decrypted);
