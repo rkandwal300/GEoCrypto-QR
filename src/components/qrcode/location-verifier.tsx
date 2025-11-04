@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -169,7 +170,7 @@ export function LocationVerifier({ targetLocation, onScanAgain }: LocationVerifi
                   <Card style={{ background: '#f5f5f5' }}>
                      <p><Text strong>Your Location:</Text> {deviceLocation.lat.toFixed(6)}, {deviceLocation.long.toFixed(6)}</p>
                      <p><Text strong>Accuracy:</Text> {deviceLocation.accuracy.toFixed(2)} meters</p>
-                     <p><Text strong>Distance:</Text> <Text strong type={distance > 100 ? 'danger' : undefined}>{displayDistance} away</Text></p>
+                     <p><Text strong>Distance:</Text> <Text strong type={distance > 100 ? 'danger' : 'success'}>{displayDistance} away</Text></p>
                   </Card>
                   <div style={{ aspectRatio: '16/9', width: '100%', borderRadius: 8, overflow: 'hidden', border: '1px solid #e8e8e8' }}>
                     <iframe
