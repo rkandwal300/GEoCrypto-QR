@@ -11,7 +11,7 @@ import {
 import { Card, Button, message, Alert, Spin, Layout, Typography, Flex } from 'antd';
 
 const { Content } = Layout;
-const { Title, Text } = Typography;
+const { Title, Text, Link } = Typography;
 
 type DeviceLocation = {
   lat: number;
@@ -132,6 +132,9 @@ export function LocationVerifier({ targetLocation }: LocationVerifierProps) {
 
   if (verificationResult) {
     const { targetLocation, deviceLocation, distance } = verificationResult;
+    const routeUrl = `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${deviceLocation.lat}%2C${deviceLocation.long}%3B${targetLocation.latitude}%2C${targetLocation.longitude}`;
+    const embedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${Math.min(deviceLocation.long, targetLocation.longitude)-0.01},${Math.min(deviceLocation.lat, targetLocation.latitude)-0.01},${Math.max(deviceLocation.long, targetLocation.longitude)+0.01},${Math.max(deviceLocation.lat, targetLocation.latitude)+0.01}&layer=mapnik&marker=${deviceLocation.lat},${deviceLocation.long}&marker=${targetLocation.latitude},${targetLocation.longitude}`;
+    
     return (
       <Layout style={{ minHeight: '100%', padding: '24px', background: '#f0f2f5' }}>
         <Content>
@@ -156,7 +159,7 @@ export function LocationVerifier({ targetLocation }: LocationVerifierProps) {
                 </div>
 
                 <Flex vertical gap="middle">
-                  <Title level={4}>Your Location</Title>
+                  <Title level={4}>Your Location & Route</Title>
                   <Card style={{ background: '#f5f5f5' }}>
                      <p><Text strong>Your Location:</Text> {deviceLocation.lat.toFixed(6)}, {deviceLocation.long.toFixed(6)}</p>
                      <p><Text strong>Accuracy:</Text> {deviceLocation.accuracy.toFixed(2)} meters</p>
@@ -164,13 +167,16 @@ export function LocationVerifier({ targetLocation }: LocationVerifierProps) {
                   </Card>
                   <div style={{ aspectRatio: '16/9', width: '100%', borderRadius: 8, overflow: 'hidden', border: '1px solid #e8e8e8' }}>
                     <iframe
-                      width="100%"
-                      height="100%"
-                      loading="lazy"
-                      allowFullScreen
-                      src={`https://www.openstreetmap.org/export/embed.html?bbox=${targetLocation.longitude - 0.005}%2C${targetLocation.latitude - 0.005}%2C${targetLocation.longitude + 0.005}%2C${targetLocation.latitude + 0.005}&layer=mapnik&marker=${deviceLocation.lat}%2C${deviceLocation.long}`}
-                    ></iframe>
+                        width="100%"
+                        height="100%"
+                        loading="lazy"
+                        allowFullScreen
+                        src={`https://www.openstreetmap.org/export/embed.html?layer=mapnik&bbox=${Math.min(deviceLocation.long, targetLocation.longitude) - 0.01},${Math.min(deviceLocation.lat, targetLocation.latitude) - 0.01},${Math.max(deviceLocation.long, targetLocation.longitude) + 0.01},${Math.max(deviceLocation.lat, targetLocation.latitude) + 0.01}`}
+                      ></iframe>
                   </div>
+                  <Link href={routeUrl} target="_blank" rel="noopener noreferrer">
+                      View Route on OpenStreetMap
+                  </Link>
                 </Flex>
 
                 <Button
