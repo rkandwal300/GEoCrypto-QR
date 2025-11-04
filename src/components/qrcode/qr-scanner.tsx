@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
@@ -131,10 +132,13 @@ export function QrScanner() {
       processDecodedText(decodedText);
     } catch (err: any) {
       console.error('File scan failed', err);
-      setError(
-        err.message ||
-          'Could not scan the QR code from the image. Please try another image.'
-      );
+      let friendlyError = 'Could not scan the QR code from the image. Please try another image.';
+      if (typeof err === 'string' && err.includes('No MultiFormat Readers')) {
+        friendlyError = 'Could not detect a QR code in the uploaded image. Please ensure the image is clear, well-lit, and the QR code is fully visible.';
+      } else if (err.message) {
+        friendlyError = err.message;
+      }
+      setError(friendlyError);
       setScannerState('idle');
     }
   };
