@@ -46,10 +46,10 @@ export function QrGenerator() {
   } = useForm<QrFormValues>({
     resolver: zodResolver(qrFormSchema),
     defaultValues: {
-      name: "Central Park",
-      latitude: 40.785091,
-      longitude: -73.968285,
-      address: "New York, NY 10024, USA",
+      name: "",
+      latitude: undefined,
+      longitude: undefined,
+      address: "",
     },
   });
 
@@ -190,7 +190,6 @@ export function QrGenerator() {
                   onClick={handleGenerateAgain}
                   icon={<ReloadOutlined />}
                   size="large"
-                  type="primary"
                 >
                   Generate Again
                 </Button>
@@ -198,6 +197,7 @@ export function QrGenerator() {
                   onClick={handleDownload}
                   icon={<DownloadOutlined />}
                   size="large"
+                  type="primary"
                 >
                   Download
                 </Button>
