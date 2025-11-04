@@ -95,12 +95,14 @@ export function LocationVerifier({ targetLocation }: LocationVerifierProps) {
     return (
         <Layout style={{ minHeight: '100%', padding: '24px', background: '#f0f2f5' }}>
             <Flex justify="center" align="center" style={{height: '100%'}}>
+              <Flex vertical align='center' gap="middle">
                  <Spin
                     spinning={true}
                     indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />}
-                    tip={"Getting your location..."}
                     style={{ maxHeight: '100vh' }}
                 />
+                <Text type="secondary">Getting your location...</Text>
+              </Flex>
             </Flex>
         </Layout>
     )
