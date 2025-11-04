@@ -26,11 +26,12 @@ type DeviceLocation = {
 };
 
 type QrCodeData = {
-  data: any;
-  location?: {
-    lat: number;
-    long: number;
-  };
+  name: string;
+  latitude: number;
+  longitude: number;
+  address: string;
+  version: string;
+  timestamp: string;
 };
 
 type ScannedDataType = {
@@ -66,12 +67,13 @@ export function QrScanner() {
 
     try {
       const decrypted = decryptData(decodedText) as QrCodeData;
-
-      if (!decrypted.location || typeof decrypted.location.lat !== 'number' || typeof decrypted.location.long !== 'number') {
-        throw new Error("QR code is missing valid location data.");
+      
+      // Validate decrypted data structure
+      if (!decrypted.latitude || !decrypted.longitude) {
+        throw new Error("QR code is missing valid location data (latitude/longitude).");
       }
       
-      const qrLocation = decrypted.location;
+      const qrLocation = { lat: decrypted.latitude, long: decrypted.longitude };
 
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -86,6 +88,9 @@ export function QrScanner() {
             const to = point([deviceLocation.long, deviceLocation.lat]);
             const dist = distance(from, to, { units: 'meters' });
 
+            // Note: For this use case, we are not restricting by distance, just showing the data.
+            // If you wanted to enforce a distance check, you would uncomment the following:
+            /*
             if (dist > MAX_ALLOWED_DISTANCE_METERS) {
               const distanceError = `You are not at the required location. You are ~${dist.toFixed(0)} meters away.`;
               setError(distanceError);
@@ -93,27 +98,29 @@ export function QrScanner() {
               setIsLoading(false);
               return;
             }
+            */
 
             setScannedData({ qrData: decrypted, deviceLocation, distance: dist });
-            message.success('QR code decrypted and location verified.');
+            message.success('QR code decrypted successfully.');
             setIsLoading(false);
           },
           (geoError) => {
             console.error('Geolocation error:', geoError);
-            let geoErrorMessage = 'Could not get your location. Please enable location services to verify the QR code.';
+            let geoErrorMessage = 'Could not get your location to compare with the QR code. Please enable location services.';
             if (geoError.code === geoError.PERMISSION_DENIED) {
-              geoErrorMessage = "Location access was denied. You must allow location access in your browser settings to verify the QR code's location.";
+              geoErrorMessage = "Location access was denied. Location is needed to verify proximity to the QR code's target.";
             }
-            setError(geoErrorMessage);
-            message.error(geoErrorMessage);
+            // Even if we can't get device location, we can still show the QR data.
+            setScannedData({ qrData: decrypted });
+            message.warning(geoErrorMessage);
             setIsLoading(false);
           },
           { enableHighAccuracy: true }
         );
       } else {
-        const noGeoMessage = "Geolocation is not supported by your browser.";
-        setError(noGeoMessage);
-        message.error(noGeoMessage);
+        const noGeoMessage = "Geolocation is not supported by your browser. Cannot verify distance.";
+        setScannedData({ qrData: decrypted });
+        message.warning(noGeoMessage);
         setIsLoading(false);
       }
     } catch (e: any) {
@@ -239,6 +246,7 @@ export function QrScanner() {
   };
 
   if (scannedData) {
+    const { qrData, deviceLocation, distance } = scannedData;
     return (
       <Layout style={{ minHeight: '100%', padding: '24px', background: '#f0f2f5' }}>
         <Content>
@@ -257,33 +265,33 @@ export function QrScanner() {
                   <Title level={4}>Decrypted Data</Title>
                   <Card style={{ background: '#f5f5f5', marginTop: '8px' }}>
                     <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', margin: 0, fontFamily: 'monospace' }}>
-                      {typeof scannedData.qrData.data === 'string'
-                        ? scannedData.qrData.data
-                        : JSON.stringify(scannedData.qrData.data, null, 2)}
+                      {JSON.stringify(qrData, null, 2)}
                     </pre>
                   </Card>
                 </div>
 
-                {scannedData.deviceLocation && scannedData.qrData.location && (
-                  <Flex vertical gap="middle">
-                    <Title level={4}><EnvironmentOutlined style={{ marginRight: 8, color: '#1890ff' }} />Location Details</Title>
-                    <Card style={{ background: '#f5f5f5' }}>
-                       <p><Text strong>QR Target Location:</Text> {scannedData.qrData.location.lat.toFixed(6)}, {scannedData.qrData.location.long.toFixed(6)}</p>
-                       <p><Text strong>Your Location:</Text> {scannedData.deviceLocation.lat.toFixed(6)}, {scannedData.deviceLocation.long.toFixed(6)}</p>
-                       <p><Text strong>Accuracy:</Text> {scannedData.deviceLocation.accuracy.toFixed(2)} meters</p>
-                       <p><Text strong>Distance:</Text> <Text type="success" strong>{scannedData.distance?.toFixed(2)} meters away</Text></p>
-                    </Card>
-                    <div style={{ aspectRatio: '16/9', width: '100%', borderRadius: 8, overflow: 'hidden', border: '1px solid #e8e8e8' }}>
-                      <iframe
-                        width="100%"
-                        height="100%"
-                        loading="lazy"
-                        allowFullScreen
-                        src={`https://www.openstreetmap.org/export/embed.html?bbox=${scannedData.qrData.location.long - 0.005}%2C${scannedData.qrData.location.lat - 0.005}%2C${scannedData.qrData.location.long + 0.005}%2C${scannedData.qrData.location.lat + 0.005}&layer=mapnik&marker=${scannedData.qrData.location.lat}%2C${scannedData.qrData.location.long}`}
-                      ></iframe>
-                    </div>
-                  </Flex>
-                )}
+                <Flex vertical gap="middle">
+                  <Title level={4}><EnvironmentOutlined style={{ marginRight: 8, color: '#1890ff' }} />Location Details</Title>
+                  <Card style={{ background: '#f5f5f5' }}>
+                     <p><Text strong>QR Target Location:</Text> {qrData.latitude.toFixed(6)}, {qrData.longitude.toFixed(6)}</p>
+                     {deviceLocation && (
+                       <>
+                         <p><Text strong>Your Location:</Text> {deviceLocation.lat.toFixed(6)}, {deviceLocation.long.toFixed(6)}</p>
+                         <p><Text strong>Accuracy:</Text> {deviceLocation.accuracy.toFixed(2)} meters</p>
+                         <p><Text strong>Distance:</Text> <Text strong>{distance?.toFixed(2)} meters away</Text></p>
+                       </>
+                     )}
+                  </Card>
+                  <div style={{ aspectRatio: '16/9', width: '100%', borderRadius: 8, overflow: 'hidden', border: '1px solid #e8e8e8' }}>
+                    <iframe
+                      width="100%"
+                      height="100%"
+                      loading="lazy"
+                      allowFullScreen
+                      src={`https://www.openstreetmap.org/export/embed.html?bbox=${qrData.longitude - 0.005}%2C${qrData.latitude - 0.005}%2C${qrData.longitude + 0.005}%2C${qrData.latitude + 0.005}&layer=mapnik&marker=${qrData.latitude}%2C${qrData.longitude}`}
+                    ></iframe>
+                  </div>
+                </Flex>
 
                 <Button
                   type="primary"

@@ -20,16 +20,18 @@ import {
   message,
   Typography,
   Space,
-  Tooltip,
   Flex,
+  InputNumber,
 } from "antd";
 import { encryptData } from "@/lib/crypto";
 
 const { Title, Text } = Typography;
-const { TextArea } = Input;
 
 const formSchema = z.object({
-  jsonData: z.string().min(1, "Input data cannot be empty."),
+  name: z.string().min(1, "Name cannot be empty."),
+  latitude: z.number({ coerce: true }).min(-90).max(90),
+  longitude: z.number({ coerce: true }).min(-180).max(180),
+  address: z.string().min(1, "Address cannot be empty."),
 });
 
 export function QrGenerator() {
@@ -40,17 +42,16 @@ export function QrGenerator() {
   const {
     control,
     handleSubmit,
-    setValue,
     formState: { errors },
   } = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      jsonData: "",
+      name: "",
+      address: "",
     },
   });
 
-  const handleDataChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setValue("jsonData", e.target.value, { shouldValidate: true });
+  const onFormChange = () => {
     if (qrValue) {
       setQrValue(null);
     }
@@ -59,62 +60,29 @@ export function QrGenerator() {
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     setIsGenerating(true);
     setQrValue(null);
-    message.loading({
-      content: "Getting Location...",
-      key: "loc",
-      duration: 0,
-    });
+    
+    try {
+      const dataToEncrypt = {
+        name: values.name,
+        latitude: values.latitude,
+        longitude: values.longitude,
+        address: values.address,
+        version: "1.0.0",
+        timestamp: new Date().toISOString(),
+      };
 
-    if (!navigator.geolocation) {
-      message.error(
-        "Your browser does not support geolocation."
-      );
+      const encrypted = encryptData(dataToEncrypt);
+      setQrValue(encrypted);
+      message.success("Your secure QR code has been generated.");
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "An unknown error occurred.";
+      message.error(`Generation Failed: ${errorMessage}`);
+    } finally {
       setIsGenerating(false);
-      return;
     }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        try {
-          const { latitude, longitude } = position.coords;
-          const dataToEncrypt = {
-            data: values.jsonData,
-            location: {
-              lat: latitude,
-              long: longitude,
-            },
-          };
-
-          const encrypted = encryptData(dataToEncrypt);
-          setQrValue(encrypted);
-          message.success({
-            content: "Your secure, location-aware QR code has been generated.",
-            key: "loc",
-          });
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error
-              ? error.message
-              : "An unknown error occurred.";
-          message.error(`Generation Failed: ${errorMessage}`);
-        } finally {
-          setIsGenerating(false);
-          message.destroy("loc");
-        }
-      },
-      (error) => {
-        let description =
-          "Could not fetch location. Please enable location services.";
-        if (error.code === error.PERMISSION_DENIED) {
-          description =
-            "Location access was denied. You must allow location access in your browser settings to generate a geo-fenced QR code.";
-        }
-        message.error(`Location Error: ${description}`);
-        setIsGenerating(false);
-        message.destroy("loc");
-      },
-      { enableHighAccuracy: true }
-    );
   };
 
   const handleDownload = () => {
@@ -210,37 +178,87 @@ export function QrGenerator() {
             />
           </div>
           <Title level={2} style={{ marginTop: 0, textAlign: 'center' }}>
-            Generate Geo-Locked QR Code
+            Generate Location QR Code
           </Title>
           <Text type="secondary" style={{ textAlign: 'center' }}>
-            Encrypt data into a QR code that can only be scanned at your
-            current location.
+            Enter location details to generate a secure, encrypted QR code.
           </Text>
         </Flex>
 
         <div style={{ padding: '0 24px 24px' }}>
-          <Form onFinish={handleSubmit(onSubmit)} layout="vertical">
+          <Form onFinish={handleSubmit(onSubmit)} layout="vertical" onChange={onFormChange}>
             <Form.Item
-              label="Data Payload"
-              validateStatus={errors.jsonData ? "error" : ""}
-              help={errors.jsonData?.message}
+              label="Location Name"
+              validateStatus={errors.name ? "error" : ""}
+              help={errors.name?.message}
             >
               <Controller
-                name="jsonData"
+                name="name"
                 control={control}
                 render={({ field }) => (
-                  <TextArea
+                  <Input
                     {...field}
-                    placeholder="Enter any text or data you want to encrypt..."
-                    rows={6}
-                    onChange={handleDataChange}
-                    style={{ fontFamily: "monospace" }}
+                    placeholder="e.g., Central Park"
                   />
                 )}
               />
-               <Text type="secondary" style={{ textAlign: 'center', display: 'block', marginTop: 8 }}>
-                Your current location will be embedded and encrypted into the QR code.
-              </Text>
+            </Form.Item>
+            
+            <Flex gap="middle" align="start">
+              <Form.Item
+                label="Latitude"
+                validateStatus={errors.latitude ? "error" : ""}
+                help={errors.latitude?.message}
+                style={{ flex: 1 }}
+              >
+                <Controller
+                  name="latitude"
+                  control={control}
+                  render={({ field }) => (
+                    <InputNumber
+                      {...field}
+                      placeholder="e.g., 40.785091"
+                      style={{ width: '100%' }}
+                    />
+                  )}
+                />
+              </Form.Item>
+              <Form.Item
+                label="Longitude"
+                validateStatus={errors.longitude ? "error" : ""}
+                help={errors.longitude?.message}
+                style={{ flex: 1 }}
+              >
+                <Controller
+                  name="longitude"
+                  control={control}
+                  render={({ field }) => (
+                    <InputNumber
+                      {...field}
+                      placeholder="e.g., -73.968285"
+                      style={{ width: '100%' }}
+                    />
+                  )}
+                />
+              </Form.Item>
+            </Flex>
+
+            <Form.Item
+              label="Address"
+              validateStatus={errors.address ? "error" : ""}
+              help={errors.address?.message}
+            >
+              <Controller
+                name="address"
+                control={control}
+                render={({ field }) => (
+                  <Input.TextArea
+                    {...field}
+                    placeholder="e.g., New York, NY 10024, USA"
+                    rows={2}
+                  />
+                )}
+              />
             </Form.Item>
 
             <Form.Item>
