@@ -8,11 +8,12 @@ import {
   LoadingOutlined,
   ReloadOutlined,
   EnvironmentOutlined,
+  LinkOutlined,
 } from '@ant-design/icons';
 import { Card, Button, message, Alert, Spin, Layout, Typography, Flex } from 'antd';
 
 const { Content } = Layout;
-const { Title, Text, Link } = Typography;
+const { Title, Text } = Typography;
 
 type DeviceLocation = {
   lat: number;
@@ -181,9 +182,16 @@ export function LocationVerifier({ targetLocation, onScanAgain }: LocationVerifi
                         src={embedUrl}
                       ></iframe>
                   </div>
-                   <Link href={routeUrl} target="_blank" rel="noopener noreferrer">
-                      View Route on OpenStreetMap
-                  </Link>
+                  <Button
+                    href={routeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    icon={<LinkOutlined />}
+                    size="large"
+                    block
+                  >
+                    View Route on OpenStreetMap
+                  </Button>
                 </Flex>
 
                 <Button
