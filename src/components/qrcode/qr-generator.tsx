@@ -10,6 +10,7 @@ import {
   DownloadOutlined,
   ShareAltOutlined,
   ReloadOutlined,
+  AimOutlined,
 } from "@ant-design/icons";
 import {
   Button,
@@ -21,6 +22,7 @@ import {
   Typography,
   Space,
   Flex,
+  Divider,
 } from "antd";
 
 const { Title, Text } = Typography;
@@ -43,6 +45,7 @@ export function QrGenerator() {
     control,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<QrFormValues>({
     resolver: zodResolver(qrFormSchema),
@@ -71,6 +74,33 @@ export function QrGenerator() {
     setQrValue(encryptedValue);
     message.success("QR code generated successfully!");
   };
+
+  const handleFetchLocation = () => {
+    if (navigator.geolocation) {
+      message.loading({ content: "Fetching location...", key: "location" });
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setValue("latitude", position.coords.latitude, { shouldValidate: true });
+          setValue("longitude", position.coords.longitude, { shouldValidate: true });
+          message.success({
+            content: "Location coordinates fetched!",
+            key: "location",
+            duration: 2,
+          });
+        },
+        (error) => {
+          message.error({
+            content: `Failed to get location: ${error.message}`,
+            key: "location",
+            duration: 3,
+          });
+        }
+      );
+    } else {
+      message.error("Geolocation is not supported by your browser.");
+    }
+  };
+
 
   const handleDownload = () => {
     const originalCanvas =
@@ -224,7 +254,7 @@ export function QrGenerator() {
             onFinish={handleSubmit(onSubmit)}
             style={{ padding: '0 24px 24px' }}
           >
-            <Form.Item
+             <Form.Item
               label="Location Name"
               validateStatus={errors.name ? 'error' : ''}
               help={errors.name?.message}
@@ -236,12 +266,23 @@ export function QrGenerator() {
               />
             </Form.Item>
             
+            <Flex align="center" justify="space-between" style={{ marginBottom: 8 }}>
+                 <Text type="secondary">Coordinates</Text>
+                 <Button
+                    icon={<AimOutlined />}
+                    onClick={handleFetchLocation}
+                    size="small"
+                  >
+                    Fetch Current Location
+                  </Button>
+            </Flex>
+            
             <Flex gap="middle" align="start">
               <Form.Item
                 label="Latitude"
                 validateStatus={errors.latitude ? 'error' : ''}
                 help={errors.latitude?.message}
-                style={{ flex: 1 }}
+                style={{ flex: 1, marginBottom: errors.latitude ? 24 : 8 }}
               >
                 <Controller
                   name="latitude"
@@ -255,7 +296,7 @@ export function QrGenerator() {
                 label="Longitude"
                 validateStatus={errors.longitude ? 'error' : ''}
                 help={errors.longitude?.message}
-                style={{ flex: 1 }}
+                style={{ flex: 1, marginBottom: errors.longitude ? 24 : 8 }}
               >
                 <Controller
                   name="longitude"
@@ -278,6 +319,8 @@ export function QrGenerator() {
                 render={({ field }) => <Input.TextArea {...field} placeholder="e.g., New York, NY 10024, USA" autoSize={{ minRows: 2 }} />}
               />
             </Form.Item>
+            
+            <Divider />
 
             <Form.Item style={{ marginBottom: 0 }}>
               <Button type="primary" htmlType="submit" size="large" block>
