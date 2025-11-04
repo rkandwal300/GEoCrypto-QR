@@ -19,7 +19,7 @@ type DeviceLocation = {
   accuracy: number;
 };
 
-type TargetLocation = {
+export type TargetLocation = {
   name: string;
   latitude: number;
   longitude: number;
@@ -89,7 +89,7 @@ export function LocationVerifier({ targetLocation }: LocationVerifierProps) {
 
   useEffect(() => {
     verifyLocation();
-  }, []); 
+  }, [targetLocation]); 
 
   if (isLoading) {
     return (

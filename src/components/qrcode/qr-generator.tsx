@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -6,6 +5,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import QRCode from "qrcode.react";
+import { encrypt } from "@/lib/crypto";
 import {
   DownloadOutlined,
   ShareAltOutlined,
@@ -42,6 +42,7 @@ export function QrGenerator() {
   const {
     control,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm<QrFormValues>({
     resolver: zodResolver(qrFormSchema),
@@ -66,7 +67,8 @@ export function QrGenerator() {
       timestamp: new Date().toISOString(),
     };
     const jsonString = JSON.stringify(payload);
-    setQrValue(jsonString);
+    const encryptedValue = encrypt(jsonString);
+    setQrValue(encryptedValue);
     message.success("QR code generated successfully!");
   };
 
@@ -144,6 +146,7 @@ export function QrGenerator() {
 
   const handleGenerateAgain = () => {
     setQrValue("");
+    reset();
   };
 
   return (
