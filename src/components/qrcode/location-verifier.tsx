@@ -133,7 +133,12 @@ export function LocationVerifier({ targetLocation }: LocationVerifierProps) {
   if (verificationResult) {
     const { targetLocation, deviceLocation, distance } = verificationResult;
     const routeUrl = `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${deviceLocation.lat}%2C${deviceLocation.long}%3B${targetLocation.latitude}%2C${targetLocation.longitude}`;
-    const embedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${Math.min(deviceLocation.long, targetLocation.longitude) - 0.01},${Math.min(deviceLocation.lat, targetLocation.latitude) - 0.01},${Math.max(deviceLocation.long, targetLocation.longitude) + 0.01},${Math.max(deviceLocation.lat, targetLocation.latitude) + 0.01}&layer=mapnik&marker=${deviceLocation.lat},${deviceLocation.long}&marker=${targetLocation.latitude},${targetLocation.longitude}`;
+    // Correctly construct the bbox and multiple marker parameters.
+    const lon1 = deviceLocation.long;
+    const lat1 = deviceLocation.lat;
+    const lon2 = targetLocation.longitude;
+    const lat2 = targetLocation.latitude;
+    const embedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${Math.min(lon1, lon2) - 0.01},${Math.min(lat1, lat2) - 0.01},${Math.max(lon1, lon2) + 0.01},${Math.max(lat1, lat2) + 0.01}&layer=mapnik&marker=${lat1},${lon1}&marker=${lat2},${lon2}`;
     
     return (
       <Layout style={{ minHeight: '100%', padding: '24px', background: '#f0f2f5' }}>
