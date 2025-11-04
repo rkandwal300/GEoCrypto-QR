@@ -33,9 +33,12 @@ import {
   MenuProps,
   CollapseProps,
 } from 'antd';
-import { formatDistanceToNow } from 'date-fns';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
 import { useChatSocket } from '../../hooks/useChatSocket';
 import Picker, { EmojiClickData } from 'emoji-picker-react';
+
+dayjs.extend(relativeTime);
 
 const { Header, Content, Footer } = Layout;
 const { Text, Title } = Typography;
@@ -462,9 +465,7 @@ export function ChatWidget({ userId, otherId, roomId, title = 'trip-123' }: Chat
                               color: isSent && isText ? 'rgba(255, 255, 255, 0.75)' : 'rgba(0, 0, 0, 0.45)'
                             }}
                           >
-                            {formatDistanceToNow(new Date(item.timestamp), {
-                              addSuffix: true,
-                            })}
+                            {dayjs(item.timestamp).fromNow()}
                           </Text>
                         </Tooltip>
                         <Tooltip title="Star message">

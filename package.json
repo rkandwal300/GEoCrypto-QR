@@ -22,7 +22,7 @@
     "@turf/distance": "^6.5.0",
     "antd": "^5.18.3",
     "crypto-js": "^4.2.0",
-    "date-fns": "^3.6.0",
+    "dayjs": "^1.11.11",
     "dotenv": "^16.5.0",
     "emoji-picker-react": "^4.10.0",
     "events": "^3.3.0",

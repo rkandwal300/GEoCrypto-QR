@@ -174,6 +174,10 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { ChatWidget } from '../components/chat/ChatWidget';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+
+dayjs.extend(relativeTime);
 
 // Mock the custom hook to control its output
 jest.mock('../hooks/useChatSocket', () => ({
@@ -184,11 +188,15 @@ jest.mock('../hooks/useChatSocket', () => ({
   }),
 }));
 
-// Mock date-fns to return a consistent value
-jest.mock('date-fns', () => ({
-  ...jest.requireActual('date-fns'),
-  formatDistanceToNow: () => 'just now',
-}));
+// Mock dayjs to return a consistent value
+jest.mock('dayjs', () => {
+  const originalDayjs = jest.requireActual('dayjs');
+  originalDayjs.extend(jest.requireActual('dayjs/plugin/relativeTime'));
+  const mockDayjs = (time) => originalDayjs(time); // Keep original constructor
+  mockDayjs.fromNow = () => 'just now'; // Mock only fromNow
+  return (time) => ({ ...mockDayjs(time), fromNow: () => 'just now' });
+});
+
 
 describe('ChatWidget', () => {
   it('optimistically displays a sent message', async () => {
