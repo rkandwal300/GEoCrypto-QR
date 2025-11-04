@@ -143,9 +143,15 @@ export function QrScanner() {
     }
   };
 
+  const handleScanAgain = () => {
+    setTargetLocation(null);
+    setError(null);
+    setScannerState('idle');
+  }
+
 
   if (targetLocation) {
-    return <LocationVerifier targetLocation={targetLocation} />;
+    return <LocationVerifier targetLocation={targetLocation} onScanAgain={handleScanAgain} />;
   }
 
   return (

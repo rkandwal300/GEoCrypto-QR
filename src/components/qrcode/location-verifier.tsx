@@ -34,60 +34,61 @@ type VerificationResult = {
 
 interface LocationVerifierProps {
     targetLocation: TargetLocation;
+    onScanAgain: () => void;
 }
 
-export function LocationVerifier({ targetLocation }: LocationVerifierProps) {
+export function LocationVerifier({ targetLocation, onScanAgain }: LocationVerifierProps) {
   const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const verifyLocation = () => {
-    setIsLoading(true);
-    setError(null);
-    setVerificationResult(null);
-
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const deviceLocation: DeviceLocation = {
-            lat: position.coords.latitude,
-            long: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-          };
-          
-          const from = point([targetLocation.longitude, targetLocation.latitude]);
-          const to = point([deviceLocation.long, deviceLocation.lat]);
-          const dist = distance(from, to, { units: 'meters' });
-
-          setVerificationResult({
-            targetLocation,
-            deviceLocation,
-            distance: dist,
-          });
-          message.success('Location verified successfully.');
-          setIsLoading(false);
-        },
-        (geoError) => {
-          console.error('Geolocation error:', geoError);
-          let geoErrorMessage = 'Could not get your location. Please enable location services and try again.';
-          if (geoError.code === geoError.PERMISSION_DENIED) {
-            geoErrorMessage = "Location access was denied. You must grant permission to verify your location.";
-          }
-          setError(geoErrorMessage);
-          message.error(geoErrorMessage);
-          setIsLoading(false);
-        },
-        { enableHighAccuracy: true }
-      );
-    } else {
-      const noGeoMessage = "Geolocation is not supported by your browser.";
-      setError(noGeoMessage);
-      message.error(noGeoMessage);
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const verifyLocation = () => {
+      setIsLoading(true);
+      setError(null);
+      setVerificationResult(null);
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const deviceLocation: DeviceLocation = {
+              lat: position.coords.latitude,
+              long: position.coords.longitude,
+              accuracy: position.coords.accuracy,
+            };
+            
+            const from = point([targetLocation.longitude, targetLocation.latitude]);
+            const to = point([deviceLocation.long, deviceLocation.lat]);
+            const dist = distance(from, to, { units: 'meters' });
+
+            setVerificationResult({
+              targetLocation,
+              deviceLocation,
+              distance: dist,
+            });
+            message.success('Location verified successfully.');
+            setIsLoading(false);
+          },
+          (geoError) => {
+            console.error('Geolocation error:', geoError);
+            let geoErrorMessage = 'Could not get your location. Please enable location services and try again.';
+            if (geoError.code === geoError.PERMISSION_DENIED) {
+              geoErrorMessage = "Location access was denied. You must grant permission to verify your location.";
+            }
+            setError(geoErrorMessage);
+            message.error(geoErrorMessage);
+            setIsLoading(false);
+          },
+          { enableHighAccuracy: true }
+        );
+      } else {
+        const noGeoMessage = "Geolocation is not supported by your browser.";
+        setError(noGeoMessage);
+        message.error(noGeoMessage);
+        setIsLoading(false);
+      }
+    };
+
     verifyLocation();
   }, [targetLocation]); 
 
@@ -119,8 +120,8 @@ export function LocationVerifier({ targetLocation }: LocationVerifierProps) {
                         type="error"
                         showIcon
                         action={
-                            <Button type="primary" onClick={verifyLocation} style={{marginTop: 16}}>
-                                Try Again
+                            <Button type="primary" onClick={onScanAgain} style={{marginTop: 16}}>
+                                Scan Again
                             </Button>
                         }
                     />
@@ -188,10 +189,10 @@ export function LocationVerifier({ targetLocation }: LocationVerifierProps) {
                   type="primary"
                   size="large"
                   icon={<ReloadOutlined />}
-                  onClick={verifyLocation}
+                  onClick={onScanAgain}
                   style={{ width: '100%', marginTop: '16px' }}
                 >
-                  Verify Again
+                  Scan Again
                 </Button>
               </Flex>
             </Card>
