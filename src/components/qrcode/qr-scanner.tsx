@@ -38,6 +38,7 @@ export function QrScanner() {
         console.warn('QR scanner stop failed', e);
       }
     }
+    setScannerState('idle');
   };
 
   const processDecodedText = (decodedText: string) => {
@@ -133,7 +134,7 @@ export function QrScanner() {
     } catch (err: any) {
       console.error('File scan failed', err);
       let friendlyError = 'Could not scan the QR code from the image. Please try another image.';
-      if (typeof err === 'string' && err.includes('No MultiFormat Readers')) {
+      if (typeof err === 'string' && err.includes('No MultiFormat Readers were able to detect the code')) {
         friendlyError = 'Could not detect a QR code in the uploaded image. Please ensure the image is clear, well-lit, and the QR code is fully visible.';
       } else if (err.message) {
         friendlyError = err.message;
