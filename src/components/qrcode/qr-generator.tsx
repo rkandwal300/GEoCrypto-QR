@@ -1,89 +1,33 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { useState, useRef, useEffect } from "react";
 import QRCode from "qrcode.react";
 import {
   DownloadOutlined,
   ShareAltOutlined,
-  ExperimentOutlined,
-  EnvironmentOutlined,
-  LoadingOutlined,
 } from "@ant-design/icons";
 import {
   Button,
   Card,
-  Form,
-  Input,
   message,
   Typography,
   Space,
   Flex,
-  InputNumber,
 } from "antd";
-import { encryptData } from "@/lib/crypto";
 
 const { Title, Text } = Typography;
 
-const formSchema = z.object({
-  name: z.string().min(1, "Name cannot be empty."),
-  latitude: z.number({ coerce: true }).min(-90).max(90),
-  longitude: z.number({ coerce: true }).min(-180).max(180),
-  address: z.string().min(1, "Address cannot be empty."),
-});
-
 export function QrGenerator() {
-  const [qrValue, setQrValue] = useState<string | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [qrValue] = useState<string>("GeoCrypt-QR-Verification-v1.0.0");
+  const [isShareSupported, setIsShareSupported] = useState(false);
   const qrCodeRef = useRef<HTMLDivElement>(null);
 
-  const {
-    control,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: "",
-      address: "",
-    },
-  });
-
-  const onFormChange = () => {
-    if (qrValue) {
-      setQrValue(null);
+  useEffect(() => {
+    // navigator is only available on the client side.
+    if (navigator.share) {
+      setIsShareSupported(true);
     }
-  };
-
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    setIsGenerating(true);
-    setQrValue(null);
-    
-    try {
-      const dataToEncrypt = {
-        name: values.name,
-        latitude: values.latitude,
-        longitude: values.longitude,
-        address: values.address,
-        version: "1.0.0",
-        timestamp: new Date().toISOString(),
-      };
-
-      const encrypted = encryptData(dataToEncrypt);
-      setQrValue(encrypted);
-      message.success("Your secure QR code has been generated.");
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "An unknown error occurred.";
-      message.error(`Generation Failed: ${errorMessage}`);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
+  }, []);
 
   const handleDownload = () => {
     const originalCanvas =
@@ -166,117 +110,13 @@ export function QrGenerator() {
         }}
       >
         <Flex vertical align="center" gap="middle" style={{ padding: '24px' }}>
-          <div
-            style={{
-              backgroundColor: 'rgba(24, 144, 255, 0.1)',
-              padding: '12px',
-              borderRadius: '50%',
-            }}
-          >
-            <EnvironmentOutlined
-              style={{ fontSize: '32px', color: '#1890ff' }}
-            />
-          </div>
           <Title level={2} style={{ marginTop: 0, textAlign: 'center' }}>
-            Generate Location QR Code
+            Location Verification QR Code
           </Title>
           <Text type="secondary" style={{ textAlign: 'center' }}>
-            Enter location details to generate a secure, encrypted QR code.
+            Scan this QR code on-site to verify your location.
           </Text>
         </Flex>
-
-        <div style={{ padding: '0 24px 24px' }}>
-          <Form onFinish={handleSubmit(onSubmit)} layout="vertical" onChange={onFormChange}>
-            <Form.Item
-              label="Location Name"
-              validateStatus={errors.name ? "error" : ""}
-              help={errors.name?.message}
-            >
-              <Controller
-                name="name"
-                control={control}
-                render={({ field }) => (
-                  <Input
-                    {...field}
-                    placeholder="e.g., Central Park"
-                  />
-                )}
-              />
-            </Form.Item>
-            
-            <Flex gap="middle" align="start">
-              <Form.Item
-                label="Latitude"
-                validateStatus={errors.latitude ? "error" : ""}
-                help={errors.latitude?.message}
-                style={{ flex: 1 }}
-              >
-                <Controller
-                  name="latitude"
-                  control={control}
-                  render={({ field }) => (
-                    <InputNumber
-                      {...field}
-                      placeholder="e.g., 40.785091"
-                      style={{ width: '100%' }}
-                    />
-                  )}
-                />
-              </Form.Item>
-              <Form.Item
-                label="Longitude"
-                validateStatus={errors.longitude ? "error" : ""}
-                help={errors.longitude?.message}
-                style={{ flex: 1 }}
-              >
-                <Controller
-                  name="longitude"
-                  control={control}
-                  render={({ field }) => (
-                    <InputNumber
-                      {...field}
-                      placeholder="e.g., -73.968285"
-                      style={{ width: '100%' }}
-                    />
-                  )}
-                />
-              </Form.Item>
-            </Flex>
-
-            <Form.Item
-              label="Address"
-              validateStatus={errors.address ? "error" : ""}
-              help={errors.address?.message}
-            >
-              <Controller
-                name="address"
-                control={control}
-                render={({ field }) => (
-                  <Input.TextArea
-                    {...field}
-                    placeholder="e.g., New York, NY 10024, USA"
-                    rows={2}
-                  />
-                )}
-              />
-            </Form.Item>
-
-            <Form.Item>
-              <Button
-                type="primary"
-                htmlType="submit"
-                block
-                size="large"
-                loading={isGenerating}
-                icon={
-                  isGenerating ? <LoadingOutlined /> : <ExperimentOutlined />
-                }
-              >
-                {isGenerating ? "Generating..." : "Generate Code"}
-              </Button>
-            </Form.Item>
-          </Form>
-        </div>
 
         {qrValue && (
           <div style={{ padding: '24px', borderTop: '1px solid #f0f0f0', backgroundColor: '#fafafa' }}>
@@ -308,7 +148,7 @@ export function QrGenerator() {
                 >
                   Download
                 </Button>
-                {navigator.share && (
+                {isShareSupported && (
                   <Button
                     onClick={handleShareClick}
                     icon={<ShareAltOutlined />}
