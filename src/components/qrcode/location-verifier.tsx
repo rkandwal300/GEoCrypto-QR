@@ -132,13 +132,13 @@ export function LocationVerifier({ targetLocation }: LocationVerifierProps) {
 
   if (verificationResult) {
     const { targetLocation, deviceLocation, distance } = verificationResult;
+    const distanceInKm = distance > 1000;
+    const displayDistance = distanceInKm
+      ? `${(distance / 1000).toFixed(2)} km`
+      : `${distance.toFixed(2)} meters`;
+    
+    const embedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${targetLocation.longitude - 0.01},${targetLocation.latitude - 0.01},${targetLocation.longitude + 0.01},${targetLocation.latitude + 0.01}&layer=mapnik&marker=${targetLocation.latitude},${targetLocation.longitude}`;
     const routeUrl = `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${deviceLocation.lat}%2C${deviceLocation.long}%3B${targetLocation.latitude}%2C${targetLocation.longitude}`;
-    // Correctly construct the bbox and multiple marker parameters.
-    const lon1 = deviceLocation.long;
-    const lat1 = deviceLocation.lat;
-    const lon2 = targetLocation.longitude;
-    const lat2 = targetLocation.latitude;
-    const embedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${Math.min(lon1, lon2) - 0.01},${Math.min(lat1, lat2) - 0.01},${Math.max(lon1, lon2) + 0.01},${Math.max(lat1, lat2) + 0.01}&layer=mapnik&marker=${lat1},${lon1}&marker=${lat2},${lon2}`;
     
     return (
       <Layout style={{ minHeight: '100%', padding: '24px', background: '#f0f2f5' }}>
@@ -164,11 +164,11 @@ export function LocationVerifier({ targetLocation }: LocationVerifierProps) {
                 </div>
 
                 <Flex vertical gap="middle">
-                  <Title level={4}>Your Location & Route</Title>
+                  <Title level={4}>Your Location & Distance</Title>
                   <Card style={{ background: '#f5f5f5' }}>
                      <p><Text strong>Your Location:</Text> {deviceLocation.lat.toFixed(6)}, {deviceLocation.long.toFixed(6)}</p>
                      <p><Text strong>Accuracy:</Text> {deviceLocation.accuracy.toFixed(2)} meters</p>
-                     <p><Text strong>Distance:</Text> <Text strong>{distance?.toFixed(2)} meters away</Text></p>
+                     <p><Text strong>Distance:</Text> <Text strong type={distance > 100 ? 'danger' : undefined}>{displayDistance} away</Text></p>
                   </Card>
                   <div style={{ aspectRatio: '16/9', width: '100%', borderRadius: 8, overflow: 'hidden', border: '1px solid #e8e8e8' }}>
                     <iframe
@@ -179,7 +179,7 @@ export function LocationVerifier({ targetLocation }: LocationVerifierProps) {
                         src={embedUrl}
                       ></iframe>
                   </div>
-                  <Link href={routeUrl} target="_blank" rel="noopener noreferrer">
+                   <Link href={routeUrl} target="_blank" rel="noopener noreferrer">
                       View Route on OpenStreetMap
                   </Link>
                 </Flex>
