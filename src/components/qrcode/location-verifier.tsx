@@ -133,7 +133,7 @@ export function LocationVerifier({ targetLocation }: LocationVerifierProps) {
   if (verificationResult) {
     const { targetLocation, deviceLocation, distance } = verificationResult;
     const routeUrl = `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${deviceLocation.lat}%2C${deviceLocation.long}%3B${targetLocation.latitude}%2C${targetLocation.longitude}`;
-    const embedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${Math.min(deviceLocation.long, targetLocation.longitude)-0.01},${Math.min(deviceLocation.lat, targetLocation.latitude)-0.01},${Math.max(deviceLocation.long, targetLocation.longitude)+0.01},${Math.max(deviceLocation.lat, targetLocation.latitude)+0.01}&layer=mapnik&marker=${deviceLocation.lat},${deviceLocation.long}&marker=${targetLocation.latitude},${targetLocation.longitude}`;
+    const embedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${Math.min(deviceLocation.long, targetLocation.longitude) - 0.01},${Math.min(deviceLocation.lat, targetLocation.latitude) - 0.01},${Math.max(deviceLocation.long, targetLocation.longitude) + 0.01},${Math.max(deviceLocation.lat, targetLocation.latitude) + 0.01}&layer=mapnik&marker=${deviceLocation.lat},${deviceLocation.long}&marker=${targetLocation.latitude},${targetLocation.longitude}`;
     
     return (
       <Layout style={{ minHeight: '100%', padding: '24px', background: '#f0f2f5' }}>
@@ -171,7 +171,7 @@ export function LocationVerifier({ targetLocation }: LocationVerifierProps) {
                         height="100%"
                         loading="lazy"
                         allowFullScreen
-                        src={`https://www.openstreetmap.org/export/embed.html?layer=mapnik&bbox=${Math.min(deviceLocation.long, targetLocation.longitude) - 0.01},${Math.min(deviceLocation.lat, targetLocation.latitude) - 0.01},${Math.max(deviceLocation.long, targetLocation.longitude) + 0.01},${Math.max(deviceLocation.lat, targetLocation.latitude) + 0.01}`}
+                        src={embedUrl}
                       ></iframe>
                   </div>
                   <Link href={routeUrl} target="_blank" rel="noopener noreferrer">
