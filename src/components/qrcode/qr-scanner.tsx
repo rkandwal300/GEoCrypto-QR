@@ -25,6 +25,7 @@ export function QrScanner() {
   const [distanceToTarget, setDistanceToTarget] = useState<number | null>(null);
   const [scannerState, setScannerState] = useState<ScannerState>("initializing");
   const html5QrcodeRef = useRef<Html5Qrcode | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // --- Core Functions ---
 
@@ -176,7 +177,6 @@ export function QrScanner() {
          // This can fail if the scanner is already stopped, so we can ignore it.
       });
     }
-    setScannerState("idle");
   };
 
   // --- Event Handlers ---
@@ -184,6 +184,11 @@ export function QrScanner() {
   const startCameraScan = () => {
     setVerificationError(null);
     setScannerState("scanning");
+  };
+
+  const handleFileUploadClick = () => {
+    // Programmatically click the hidden file input
+    fileInputRef.current?.click();
   };
   
   const handleFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -208,7 +213,9 @@ export function QrScanner() {
       setScannerState("result");
     } finally {
         // IMPORTANT: Reset the file input value to allow re-uploading the same file
-        fileInput.value = '';
+        if (fileInput) {
+            fileInput.value = '';
+        }
     }
   };
 
@@ -338,13 +345,11 @@ export function QrScanner() {
                 Start Camera Scan
               </Button>
               
-              {/* Use a label to trigger the hidden file input */}
-              <label htmlFor={QR_FILE_INPUT_ID}>
-                <Button size="large" icon={<UploadOutlined />} style={{ width: '100%' }} component="span">
+              <Button size="large" icon={<UploadOutlined />} onClick={handleFileUploadClick}>
                   Upload QR Code
-                </Button>
-              </label>
+              </Button>
               <input
+                ref={fileInputRef}
                 type="file"
                 id={QR_FILE_INPUT_ID}
                 accept="image/*"
