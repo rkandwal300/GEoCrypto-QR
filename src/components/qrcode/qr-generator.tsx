@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -103,38 +104,68 @@ export function QrGenerator() {
 
 
   const handleDownload = () => {
-    const originalCanvas =
-      qrCodeRef.current?.querySelector<HTMLCanvasElement>("canvas");
-    if (!originalCanvas || !qrValue) {
-      message.error("Could not find the QR code canvas.");
+    if (!qrValue) {
+      message.error("No QR code has been generated.");
       return;
     }
 
-    const downloadSize = 1024;
-    const padding = downloadSize * 0.1;
-    const innerSize = downloadSize - padding * 2;
-
-    const downloadCanvas = document.createElement("canvas");
-    downloadCanvas.width = downloadSize;
-    downloadCanvas.height = downloadSize;
-    const ctx = downloadCanvas.getContext("2d");
-
+    // Create a new, hidden canvas for high-resolution rendering
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
     if (!ctx) {
       message.error("Could not create a canvas for downloading.");
       return;
     }
 
+    const downloadSize = 1024;
+    const padding = 40; 
+    const innerQrSize = downloadSize - padding * 2;
+
+    // Use a temporary QRCode component to render directly to our new canvas
+    const tempDiv = document.createElement("div");
+    document.body.appendChild(tempDiv);
+    
+    // This is a trick to get the QR code data onto our hi-res canvas
+    const tempQr = (
+        <QRCode
+            value={qrValue}
+            size={innerQrSize}
+            level="H"
+            renderAs="canvas"
+            bgColor="#FFFFFF"
+            fgColor="#000000"
+        />
+    );
+    
+    // We need to render it to get the canvas element
+    const tempCanvas = document.createElement('canvas');
+    const qrCode = new (QRCode as any)({
+        value: qrValue,
+        size: innerQrSize,
+        level: 'H',
+        bgColor: '#FFFFFF',
+        fgColor: '#000000',
+    });
+    
+    const qrCanvas = qrCode.renderTo(tempCanvas);
+
+    // Prepare the final download canvas with a white background and padding
+    canvas.width = downloadSize;
+    canvas.height = downloadSize;
     ctx.fillStyle = "#FFFFFF";
     ctx.fillRect(0, 0, downloadSize, downloadSize);
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(originalCanvas, padding, padding, innerSize, innerSize);
 
+    // Draw the newly generated, high-resolution QR code onto the padded canvas
+    ctx.drawImage(qrCanvas, padding, padding);
+
+    // Trigger the download
     const link = document.createElement("a");
-    link.href = downloadCanvas.toDataURL("image/png");
+    link.href = canvas.toDataURL("image/png");
     link.download = "geocrypt-qrcode.png";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    document.body.removeChild(tempDiv);
 
     message.success("Download started!");
   };
