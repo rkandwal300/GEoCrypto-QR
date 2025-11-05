@@ -13,6 +13,7 @@ import { point } from '@turf/helpers';
 const { Title, Paragraph } = Typography;
 
 const QR_READER_ID = "qr-reader";
+const QR_FILE_INPUT_ID = "qr-file-input";
 
 type ScannerState = "idle" | "initializing" | "scanning" | "verifying" | "result";
 type DeviceLocation = { lat: number; long: number; accuracy: number };
@@ -24,8 +25,7 @@ export function QrScanner() {
   const [distanceToTarget, setDistanceToTarget] = useState<number | null>(null);
   const [scannerState, setScannerState] = useState<ScannerState>("initializing");
   const html5QrcodeRef = useRef<Html5Qrcode | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
+  
   // --- Core Functions ---
 
   useEffect(() => {
@@ -185,24 +185,20 @@ export function QrScanner() {
     setVerificationError(null);
     setScannerState("scanning");
   };
-
-  const handleFileScanClick = () => {
-    fileInputRef.current?.click();
-  };
   
   const handleFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!event.target.files || event.target.files.length === 0) {
-      setScannerState("idle");
+    const fileInput = event.target as HTMLInputElement;
+    if (!fileInput.files || fileInput.files.length === 0) {
       return;
-    };
-    const file = event.target.files[0];
+    }
+    const file = fileInput.files[0];
     
-    setScannerState("scanning");
+    setScannerState("verifying");
     message.loading({ content: 'Scanning image...', key: 'scanning' });
     
     try {
       if (!html5QrcodeRef.current) throw new Error("Scanner not initialized.");
-      const decodedText = await html5QrcodeRef.current.scanFile(file, true);
+      const decodedText = await html5QrcodeRef.current.scanFile(file, false);
       message.success({ content: 'Scan complete!', key: 'scanning' });
       processDecodedText(decodedText);
     } catch (err: any) {
@@ -211,7 +207,8 @@ export function QrScanner() {
       setVerificationError(friendlyError);
       setScannerState("result");
     } finally {
-        if (event.target) event.target.value = '';
+        // IMPORTANT: Reset the file input value to allow re-uploading the same file
+        fileInput.value = '';
     }
   };
 
@@ -219,8 +216,8 @@ export function QrScanner() {
     setTargetLocation(null);
     setVerificationError(null);
     setDistanceToTarget(null);
-    setDeviceLocation(null);
-    requestLocationAndSetState();
+    setDeviceLocation(null); // Clear old location
+    requestLocationAndSetState(); // Re-fetch location and set state to initializing
   };
 
   // --- Error Handling ---
@@ -325,7 +322,7 @@ export function QrScanner() {
         </Flex>
   
         <div style={{ padding: "0 24px 24px" }}>
-           {/* This div is now only a placeholder for non-scanning state */}
+           {/* This div is used by Html5Qrcode for the camera feed */}
            <div id={QR_READER_ID} style={{ display: 'none' }}></div>
           
           {isLoading ? (
@@ -340,13 +337,16 @@ export function QrScanner() {
               <Button type="primary" size="large" icon={<VideoCameraOutlined />} onClick={startCameraScan}>
                 Start Camera Scan
               </Button>
-              <Button size="large" icon={<UploadOutlined />} onClick={handleFileScanClick}>
-                Upload QR Code
-              </Button>
+              
+              {/* Use a label to trigger the hidden file input */}
+              <label htmlFor={QR_FILE_INPUT_ID}>
+                <Button size="large" icon={<UploadOutlined />} style={{ width: '100%' }} component="span">
+                  Upload QR Code
+                </Button>
+              </label>
               <input
                 type="file"
-                id="qr-file-input"
-                ref={fileInputRef}
+                id={QR_FILE_INPUT_ID}
                 accept="image/*"
                 style={{ display: "none" }}
                 onChange={handleFileSelected}
