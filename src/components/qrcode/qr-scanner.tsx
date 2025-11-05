@@ -41,17 +41,7 @@ export function QrScanner() {
     }
 
     // Request location permission on initial load
-    requestLocation()
-      .then(location => {
-        setDeviceLocation(location);
-        message.success("Location acquired. Ready to scan.", 2);
-      })
-      .catch(err => {
-        handleLocationError(err);
-      })
-      .finally(() => {
-        setScannerState("idle");
-      });
+    requestLocationAndSetState();
       
     // Cleanup scanner on component unmount
     return () => {
@@ -100,6 +90,21 @@ export function QrScanner() {
       );
     });
   };
+
+  const requestLocationAndSetState = () => {
+    setScannerState("initializing");
+    requestLocation()
+      .then(location => {
+        setDeviceLocation(location);
+        message.success("Location acquired. Ready to scan.", 2);
+      })
+      .catch(err => {
+        handleLocationError(err);
+      })
+      .finally(() => {
+        setScannerState("idle");
+      });
+  }
 
   const getFormattedTimestamp = () => {
     const now = new Date();
@@ -224,7 +229,7 @@ export function QrScanner() {
     setTargetLocation(null);
     setVerificationError(null);
     setDistanceToTarget(null);
-    setScannerState("idle");
+    requestLocationAndSetState();
   };
 
   // --- Error Handling ---
@@ -363,4 +368,3 @@ export function QrScanner() {
     </div>
   );
 }
-
