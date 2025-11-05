@@ -4,13 +4,11 @@ import { useEffect, useState, useRef } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { decrypt } from "@/lib/crypto";
 import { LocationVerifier, TargetLocation } from "./LocationVerifier";
-// import {   Button,message, Typography, Alert, Flex, Spin } from "antd";
-import {  message, Typography, Alert, Flex, Spin } from "antd";
+import { Button, message, Typography, Alert, Flex, Spin } from "antd";
 import {
   UploadOutlined,
   VideoCameraOutlined,
 } from "@ant-design/icons";
-// import { Button } from "@/components/button/Button";
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -239,9 +237,6 @@ export function QrScanner() {
               Start QR Scan
             </Button>
             <Button
-              variant="tertiary"
-              size="middle"
-              style={{ color: "#123" }}
               icon={<UploadOutlined />}
               onClick={() => document.getElementById("qr-file-input")?.click()}
             >
