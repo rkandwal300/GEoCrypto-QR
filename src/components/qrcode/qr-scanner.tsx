@@ -161,13 +161,13 @@ export function QrScanner() {
       
       setDistanceToTarget(dist);
       setTargetLocation(parsed);
-      setScannerState("result");
       message.success("QR Code processed successfully!");
 
     } catch (e: any) {
       setVerificationError(e.message || "Failed to parse QR code. Please scan a valid GeoCrypt QR code.");
-      setScannerState("result");
       message.error(e.message || "Failed to parse QR code.");
+    } finally {
+        setScannerState("result");
     }
   };
   
@@ -177,6 +177,7 @@ export function QrScanner() {
          // This can fail if the scanner is already stopped, so we can ignore it.
       });
     }
+    setScannerState('idle');
   };
 
   // --- Event Handlers ---
@@ -243,7 +244,7 @@ export function QrScanner() {
   
   // --- Render Logic ---
 
-  if (scannerState === 'result' || scannerState === 'verifying') {
+  if (scannerState === 'result') {
      return (
         <LocationVerifier
             targetLocation={targetLocation}
@@ -255,7 +256,7 @@ export function QrScanner() {
      )
   }
 
-  const isLoading = scannerState === 'initializing';
+  const isLoading = scannerState === 'initializing' || scannerState === 'verifying';
   const isScanning = scannerState === 'scanning';
 
   const containerStyle: React.CSSProperties = isScanning
@@ -336,7 +337,7 @@ export function QrScanner() {
             <Flex justify="center" align="center" vertical gap="small" style={{ marginTop: 16, minHeight: 100 }}>
               <Spin />
               <Typography.Text type="secondary">
-                Acquiring location...
+                {scannerState === 'verifying' ? 'Verifying QR Code...' : 'Acquiring location...'}
               </Typography.Text>
             </Flex>
           ): (
@@ -364,3 +365,5 @@ export function QrScanner() {
     </div>
   );
 }
+
+    
