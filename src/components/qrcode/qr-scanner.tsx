@@ -82,7 +82,6 @@ export function QrScanner() {
     }
   }, [scannerState]);
 
-
   const requestLocation = (): Promise<DeviceLocation> => {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
@@ -100,6 +99,25 @@ export function QrScanner() {
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
     });
+  };
+
+  const getFormattedTimestamp = () => {
+    const now = new Date();
+    const pad = (num: number) => num.toString().padStart(2, '0');
+  
+    const year = now.getFullYear();
+    const month = pad(now.getMonth() + 1);
+    const day = pad(now.getDate());
+    const hours = pad(now.getHours());
+    const minutes = pad(now.getMinutes());
+    const seconds = pad(now.getSeconds());
+  
+    const timezoneOffset = -now.getTimezoneOffset();
+    const offsetSign = timezoneOffset >= 0 ? '+' : '-';
+    const offsetHours = pad(Math.floor(Math.abs(timezoneOffset) / 60));
+    const offsetMinutes = pad(Math.abs(timezoneOffset) % 60);
+  
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${offsetSign}${offsetHours}:${offsetMinutes}`;
   };
   
   const processDecodedText = (decodedText: string) => {
@@ -123,6 +141,20 @@ export function QrScanner() {
       const to = point([deviceLocation.long, deviceLocation.lat]);
       const dist = distance(from, to, { units: 'meters' });
 
+      // Construct the final payload
+      const payload = {
+        driver_reporting_location: {
+          latitude: parsed.latitude,
+          longitude: parsed.longitude,
+          name: parsed.name,
+          address: parsed.address,
+          Distance: dist
+        },
+        driver_reporting_time: getFormattedTimestamp()
+      };
+
+      console.log('payload:', JSON.stringify(payload, null, 2));
+      
       setDistanceToTarget(dist);
       setTargetLocation(parsed);
       setScannerState("result");
@@ -248,14 +280,16 @@ export function QrScanner() {
       };
   
   const qrReaderStyle: React.CSSProperties = {
-    width: '100vw',
-    height: '100vh',
+    width: '100%',
+    height: '100%',
     overflow: 'hidden',
   };
 
   const videoStyle = `
     #${QR_READER_ID} {
       position: relative;
+      width: 100%;
+      height: 100%;
     }
     #${QR_READER_ID} video {
       width: 100vw !important;
@@ -329,3 +363,4 @@ export function QrScanner() {
     </div>
   );
 }
+
