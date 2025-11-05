@@ -157,13 +157,17 @@ export function QrScanner() {
 
      try {
       const location = await requestLocation();
-      setDeviceLocation(location); // Store location in state
+      setDeviceLocation(location);
       message.success({ content: "Location acquired! Please select a file.", key: "location", duration: 2 });
+      // Programmatically click the hidden file input
       fileInputRef.current?.click();
-      // Keep state as 'requesting' to show spinner while file dialog is open
+      // Important: Set state back to idle so the UI doesn't stay stuck on the loader.
+      // The file input dialog is now open and waiting for the user.
+      setScannerState('idle'); 
     } catch (err: any) {
        handleLocationError(err);
        message.destroy("location");
+       setScannerState('idle');
     }
   };
 
@@ -267,3 +271,4 @@ export function QrScanner() {
     </div>
   );
 }
+
