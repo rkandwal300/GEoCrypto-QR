@@ -43,6 +43,7 @@ export function QrGenerator() {
   const [qrValue, setQrValue] = useState<string>("");
   const [isShareSupported, setIsShareSupported] = useState(false);
   const qrCodeRef = useRef<HTMLDivElement>(null);
+  const [messageApi, contextHolder] = message.useMessage();
 
   const {
     control,
@@ -75,24 +76,24 @@ export function QrGenerator() {
     const jsonString = JSON.stringify(payload);
     const encryptedValue = encrypt(jsonString);
     setQrValue(encryptedValue);
-    message.success("QR code generated successfully!");
+    messageApi.success("QR code generated successfully!");
   };
 
   const handleFetchLocation = () => {
     if (navigator.geolocation) {
-      message.loading({ content: "Fetching location...", key: "location" });
+      messageApi.loading({ content: "Fetching location...", key: "location" });
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setValue("latitude", position.coords.latitude, { shouldValidate: true });
           setValue("longitude", position.coords.longitude, { shouldValidate: true });
-          message.success({
+          messageApi.success({
             content: "Location coordinates fetched!",
             key: "location",
             duration: 2,
           });
         },
         (error) => {
-          message.error({
+          messageApi.error({
             content: `Failed to get location: ${error.message}`,
             key: "location",
             duration: 3,
@@ -100,14 +101,14 @@ export function QrGenerator() {
         }
       );
     } else {
-      message.error("Geolocation is not supported by your browser.");
+      messageApi.error("Geolocation is not supported by your browser.");
     }
   };
 
 
   const handleDownload = () => {
     if (!qrValue) {
-      message.error("No QR code has been generated.");
+      messageApi.error("No QR code has been generated.");
       return;
     }
 
@@ -137,7 +138,7 @@ export function QrGenerator() {
     // Find the canvas element that was just rendered
     const qrCanvas = tempDiv.querySelector("canvas");
     if (!qrCanvas) {
-      message.error("Could not generate QR code for download.");
+      messageApi.error("Could not generate QR code for download.");
       document.body.removeChild(tempDiv);
       return;
     }
@@ -146,7 +147,7 @@ export function QrGenerator() {
     const downloadCanvas = document.createElement("canvas");
     const ctx = downloadCanvas.getContext("2d");
     if (!ctx) {
-      message.error("Could not create canvas for download.");
+      messageApi.error("Could not create canvas for download.");
       document.body.removeChild(tempDiv);
       return;
     }
@@ -171,14 +172,14 @@ export function QrGenerator() {
     ReactDOM.unmountComponentAtNode(tempDiv);
     document.body.removeChild(tempDiv);
 
-    message.success("Download started!");
+    messageApi.success("Download started!");
   };
 
   const handleShareClick = async () => {
     const canvas =
       qrCodeRef.current?.querySelector<HTMLCanvasElement>("canvas");
     if (!canvas || !navigator.share) {
-      message.error(
+      messageApi.error(
         !canvas
           ? "QR code not found."
           : "Web Share API is not supported on this browser."
@@ -191,7 +192,7 @@ export function QrGenerator() {
         canvas.toBlob(resolve, "image/png")
       );
       if (!blob) {
-        message.error("Failed to create image from QR code.");
+        messageApi.error("Failed to create image from QR code.");
         return;
       }
       const file = new File([blob], "geocrypt-qrcode.png", {
@@ -204,7 +205,7 @@ export function QrGenerator() {
 
     } catch (error: any) {
       if (error.name !== "AbortError") {
-         message.error(`Share failed: ${error.message || "Could not share the QR code."}`);
+         messageApi.error(`Share failed: ${error.message || "Could not share the QR code."}`);
       }
     }
   };
@@ -216,6 +217,7 @@ export function QrGenerator() {
 
   return (
     <div style={{ width: '100%', maxWidth: '800px', margin: '0 auto', padding: '16px' }}>
+      {contextHolder}
       <Card
         style={{
           boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
