@@ -27,28 +27,20 @@ export function QrScanner() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    // Initialize the scanner object only once.
     if (!html5QrcodeRef.current) {
       html5QrcodeRef.current = new Html5Qrcode(QR_READER_ID, { verbose: false });
     }
 
-    const handleFocus = () => {
-      // When the user closes the file dialog, the window regains focus.
-      // If we are still in the 'requesting' state, it means they cancelled.
-      if (scannerState === 'requesting' && fileInputRef.current) {
-        // A small timeout helps ensure this runs after other focus-related events
-        setTimeout(() => {
-            setScannerState('idle');
-        }, 100);
+    const scanner = html5QrcodeRef.current;
+    
+    // Cleanup function to stop the scanner when the component unmounts.
+    return () => {
+      if (scanner?.isScanning) {
+        scanner.stop().catch(err => console.error("Failed to stop scanner on unmount", err));
       }
     };
-
-    window.addEventListener('focus', handleFocus);
-
-    return () => {
-      stopScan();
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, [scannerState]);
+  }, []);
 
   const stopScan = async () => {
     if (html5QrcodeRef.current?.isScanning) {
@@ -72,8 +64,10 @@ export function QrScanner() {
   };
   
   const requestLocation = (): Promise<DeviceLocation> => {
+    setScannerState("requesting");
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
+        setScannerState("idle");
         reject(new Error("Geolocation is not supported by your browser."));
         return;
       }
@@ -89,6 +83,7 @@ export function QrScanner() {
         },
         (error) => {
           message.error({ content: "Failed to get location.", key: "location", duration: 3 });
+          setScannerState("idle");
           reject(error);
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -130,43 +125,8 @@ export function QrScanner() {
     }
   };
 
-  const checkAndRequestPermissions = async (
-    check: "camera" | "geolocation"
-  ): Promise<boolean> => {
-    try {
-      // @ts-ignore
-      const permissionStatus = await navigator.permissions.query({ name: check });
-
-      if (permissionStatus.state === 'granted') {
-        return true;
-      }
-
-      if (permissionStatus.state === 'denied') {
-        setVerificationError(
-          `Permission for ${check} was denied. Please enable it in your browser settings.`
-        );
-        setScannerState('result');
-        return false;
-      }
-      // state is 'prompt', so we will request it.
-      return true;
-
-    } catch (err) {
-      // Permissions API might not be supported, so we proceed to request directly.
-      return true;
-    }
-  };
-
   const startCameraScan = async () => {
-    setScannerState("requesting");
     setVerificationError(null);
-
-    const canUseCamera = await checkAndRequestPermissions("camera");
-    if (!canUseCamera) return;
-
-    const canUseLocation = await checkAndRequestPermissions("geolocation");
-    if (!canUseLocation) return;
-    
     let location: DeviceLocation;
     try {
       location = await requestLocation();
@@ -196,18 +156,16 @@ export function QrScanner() {
   };
 
   const handleFileScanClick = async () => {
-     setScannerState("requesting");
      setVerificationError(null);
-     
-     const canUseLocation = await checkAndRequestPermissions("geolocation");
-     if (!canUseLocation) {
-        return;
-     }
      
      try {
       const location = await requestLocation();
+      // Store location temporarily so it can be retrieved after file selection
       fileInputRef.current?.setAttribute('data-location', JSON.stringify(location));
+      // Programmatically click the hidden file input
       fileInputRef.current?.click();
+      // Reset state to idle so the UI doesn't show a spinner while file dialog is open
+      setScannerState("idle"); 
     } catch (err: any) {
        handleLocationError(err);
     }
@@ -215,23 +173,25 @@ export function QrScanner() {
 
   const handleFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files || event.target.files.length === 0) {
-      setScannerState("idle");
-      return;
+      return; // User cancelled the file dialog
     }
     const file = event.target.files[0];
     const locationString = fileInputRef.current?.getAttribute('data-location');
+    
     if (!locationString) {
-      setVerificationError('Device location was not available for verification.');
+      setVerificationError('Device location was not available for verification. Please try again.');
       setScannerState('result');
       return;
     }
     const location = JSON.parse(locationString);
 
     setScannerState("scanning");
+    message.loading({ content: 'Scanning image...', key: 'scanning' });
     
     try {
       if (!html5QrcodeRef.current) throw new Error("Scanner not initialized.");
       const decodedText = await html5QrcodeRef.current.scanFile(file, true);
+      message.success({ content: 'Scan complete!', key: 'scanning' });
       processDecodedText(decodedText, location);
     } catch (err: any) {
       let friendlyError = "Could not scan the QR code from the image. Please try another image.";
@@ -240,9 +200,11 @@ export function QrScanner() {
       } else if (err.message) {
         friendlyError = err.message;
       }
+      message.error({ content: friendlyError, key: 'scanning', duration: 4 });
       setVerificationError(friendlyError);
       setScannerState("result");
     } finally {
+        // Reset the input value to allow scanning the same file again
         if (event.target) event.target.value = '';
     }
   };
@@ -280,14 +242,14 @@ export function QrScanner() {
 
       <div style={{ padding: "0 24px 24px" }}>
         
-        <div id={QR_READER_ID} style={{ width: "100%", display: scannerState === "scanning" ? "block" : "none" }}></div>
+        <div id={QR_READER_ID} style={{ width: "100%", display: scannerState === "scanning" ? "block" : "none", border: '1px solid #e8e8e8', borderRadius: '8px', overflow: 'hidden' }}></div>
 
         {(scannerState === "scanning" || scannerState === "requesting") && (
           <Flex justify="center" align="center" vertical gap="small" style={{ marginTop: 16, minHeight: 100 }}>
             <Spin />
             <Typography.Text type="secondary">{scannerState === "requesting" ? "Requesting permissions..." : "Waiting for QR Code..."}</Typography.Text>
             {scannerState === "scanning" && (
-                <Button onClick={stopScan} danger>Cancel</Button>
+                <Button onClick={stopScan} danger style={{marginTop: '16px'}}>Cancel</Button>
             )}
           </Flex>
         )}
