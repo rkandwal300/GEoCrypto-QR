@@ -97,12 +97,10 @@ export function QrScanner() {
       .then(location => {
         setDeviceLocation(location);
         message.success("Location acquired. Ready to scan.", 2);
+        setScannerState("idle");
       })
       .catch(err => {
         handleLocationError(err);
-      })
-      .finally(() => {
-        setScannerState("idle");
       });
   }
 
@@ -229,6 +227,8 @@ export function QrScanner() {
     setTargetLocation(null);
     setVerificationError(null);
     setDistanceToTarget(null);
+    setDeviceLocation(null);
+    setScannerState("initializing");
     requestLocationAndSetState();
   };
 
