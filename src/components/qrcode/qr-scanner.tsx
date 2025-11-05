@@ -44,20 +44,44 @@ export function QrScanner() {
     requestLocation()
       .then(location => {
         setDeviceLocation(location);
-        setScannerState("idle");
         message.success("Location acquired. Ready to scan.", 2);
       })
       .catch(err => {
         handleLocationError(err);
+      })
+      .finally(() => {
+        setScannerState("idle");
       });
       
     // Cleanup scanner on component unmount
     return () => {
-      if (html5QrcodeRef.current?.isScanning) {
-        html5QrcodeRef.current.stop().catch(err => console.error("Failed to stop scanner on unmount", err));
-      }
+      stopScan();
     };
   }, []);
+
+  // Effect to handle camera start AFTER the UI has rendered
+  useEffect(() => {
+    if (scannerState === 'scanning' && html5QrcodeRef.current) {
+        if (html5QrcodeRef.current.isScanning) {
+            return;
+        }
+
+        html5QrcodeRef.current.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            (decodedText) => processDecodedText(decodedText),
+            undefined 
+        ).catch(err => {
+            let errorMessage = "Failed to start camera. Please check browser permissions.";
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                errorMessage = "Camera access was denied. You must grant permission to scan QR codes.";
+            }
+            setVerificationError(errorMessage);
+            setScannerState("result");
+        });
+    }
+  }, [scannerState]);
+
 
   const requestLocation = (): Promise<DeviceLocation> => {
     return new Promise((resolve, reject) => {
@@ -111,45 +135,24 @@ export function QrScanner() {
     }
   };
   
-  const stopScan = async () => {
+  const stopScan = () => {
     if (html5QrcodeRef.current?.isScanning) {
-      try {
-        await html5QrcodeRef.current.stop();
-      } catch (e) {
-        console.warn("QR scanner stop failed", e);
-      }
+      html5QrcodeRef.current.stop().catch(err => {
+         // This can fail if the scanner is already stopped, so we can ignore it.
+      });
     }
     setScannerState("idle");
   };
 
   // --- Event Handlers ---
 
-  const startCameraScan = async () => {
+  const startCameraScan = () => {
     if (!deviceLocation) {
       handleLocationError(new Error("Location has not been acquired yet. Please wait or grant permission."));
       return;
     }
-
     setVerificationError(null);
     setScannerState("scanning");
-
-    try {
-      if (!html5QrcodeRef.current) throw new Error("Scanner not initialized.");
-      
-      await html5QrcodeRef.current.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          (decodedText) => processDecodedText(decodedText),
-          undefined 
-      );
-    } catch (err: any) {
-      let errorMessage = "Failed to start camera. Please check browser permissions.";
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-          errorMessage = "Camera access was denied. You must grant permission to scan QR codes.";
-      }
-      setVerificationError(errorMessage);
-      setScannerState("result");
-    }
   };
 
   const handleFileScanClick = () => {
@@ -244,19 +247,24 @@ export function QrScanner() {
         padding: "16px"
       };
   
-  // Styles for the div that contains the QR scanner video feed
   const qrReaderStyle: React.CSSProperties = {
-    width: '100%',
-    height: '100%',
+    width: '100vw',
+    height: '100vh',
     overflow: 'hidden',
   };
 
-  // When scanning, apply styles directly to the video element created by the library
   const videoStyle = `
+    #${QR_READER_ID} {
+      position: relative;
+    }
     #${QR_READER_ID} video {
-      width: 100% !important;
-      height: 100% !important;
+      width: 100vw !important;
+      height: 100vh !important;
       object-fit: cover !important;
+      border: none !important;
+    }
+    #${QR_READER_ID} div {
+      box-shadow: none !important;
     }
   `;
 
