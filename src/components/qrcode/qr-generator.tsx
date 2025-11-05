@@ -111,20 +111,22 @@ export function QrGenerator() {
       messageApi.error("No QR code has been generated.");
       return;
     }
-
+  
     const downloadSize = 1024;
     const padding = 40;
     const innerQrSize = downloadSize - padding * 2;
-
+  
+    // Create a temporary div to render the high-res QR code off-screen
     const tempDiv = document.createElement("div");
     tempDiv.style.position = "absolute";
     tempDiv.style.left = "-9999px";
     document.body.appendChild(tempDiv);
-
+  
+    // Define the QR code component to be rendered
     const tempQrComponent = (
       <QRCode
         value={qrValue}
-        size={innerQrSize}
+        size={innerQrSize} // Render at the final inner size
         level="H"
         renderAs="canvas"
         bgColor="#FFFFFF"
@@ -132,44 +134,55 @@ export function QrGenerator() {
       />
     );
     
+    // Use the modern createRoot API to render the component
     const root = createRoot(tempDiv);
     root.render(tempQrComponent);
-
+  
+    // Use a short timeout to allow React to render the component to the DOM
     setTimeout(() => {
       const qrCanvas = tempDiv.querySelector("canvas");
       if (!qrCanvas) {
         messageApi.error("Could not generate QR code for download.");
+        root.unmount();
         document.body.removeChild(tempDiv);
         return;
       }
-
+  
+      // Create the final canvas for download
       const downloadCanvas = document.createElement("canvas");
       const ctx = downloadCanvas.getContext("2d");
       if (!ctx) {
         messageApi.error("Could not create canvas for download.");
+        root.unmount();
         document.body.removeChild(tempDiv);
         return;
       }
-
+  
+      // Set the final canvas dimensions
       downloadCanvas.width = downloadSize;
       downloadCanvas.height = downloadSize;
+  
+      // Fill the background
       ctx.fillStyle = "#FFFFFF";
       ctx.fillRect(0, 0, downloadSize, downloadSize);
-
+  
+      // Draw the rendered QR code canvas onto the final canvas with padding
       ctx.drawImage(qrCanvas, padding, padding);
-
+  
+      // Trigger the download
       const link = document.createElement("a");
       link.href = downloadCanvas.toDataURL("image/png");
       link.download = "geocrypt-qrcode.png";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
+  
+      // Clean up the temporary elements
       root.unmount();
       document.body.removeChild(tempDiv);
-
+  
       messageApi.success("Download started!");
-    }, 100);
+    }, 100); // 100ms delay is usually sufficient
   };
 
   const handleShareClick = async () => {
@@ -367,5 +380,3 @@ export function QrGenerator() {
     </div>
   );
 }
-
-    
