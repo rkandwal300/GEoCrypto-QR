@@ -53,10 +53,13 @@ export function QrScanner() {
     setScannerState("idle");
   };
 
-  const handleLocationError = (error: GeolocationPositionError) => {
+  const handleLocationError = (error: GeolocationPositionError | { message: string }) => {
     let errorMessage = "Could not get your location. Please enable location services in your browser settings and try again.";
-    if (error.code === error.PERMISSION_DENIED) {
+    // Check for GeolocationPositionError specific code
+    if ('code' in error && error.code === error.PERMISSION_DENIED) {
       errorMessage = "Location access was denied. You must grant permission in your browser settings to verify your location.";
+    } else if (error.message) {
+      errorMessage = error.message;
     }
     setVerificationError(errorMessage);
     setScannerState("result");
@@ -67,23 +70,25 @@ export function QrScanner() {
     setScannerState("requesting");
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
-        setScannerState("idle");
-        reject(new Error("Geolocation is not supported by your browser."));
+        const err = new Error("Geolocation is not supported by your browser.");
+        handleLocationError(err);
+        reject(err);
         return;
       }
       message.loading({ content: "Requesting location...", key: "location" });
       navigator.geolocation.getCurrentPosition(
         (position) => {
           message.success({ content: "Location acquired!", key: "location", duration: 2 });
-          resolve({
+          const location = {
             lat: position.coords.latitude,
             long: position.coords.longitude,
             accuracy: position.coords.accuracy,
-          });
+          };
+          setDeviceLocation(location);
+          resolve(location);
         },
         (error) => {
-          message.error({ content: "Failed to get location.", key: "location", duration: 3 });
-          setScannerState("idle");
+          handleLocationError(error);
           reject(error);
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -97,7 +102,6 @@ export function QrScanner() {
     const dist = distance(from, to, { units: 'meters' });
 
     setDistanceToTarget(dist);
-    setDeviceLocation(currentDeviceLocation);
     setTargetLocation(qrLocation);
     setScannerState("result");
   };
@@ -121,23 +125,16 @@ export function QrScanner() {
     } catch (e: any) {
       setVerificationError(e.message || "Failed to parse QR code. Please scan a valid GeoCrypt QR code.");
       setScannerState("result");
-      message.error("Failed to parse QR code.");
+      message.error(e.message || "Failed to parse QR code.");
     }
   };
 
   const startCameraScan = async () => {
     setVerificationError(null);
-    let location: DeviceLocation;
     try {
-      location = await requestLocation();
-    } catch (err: any) {
-       handleLocationError(err);
-       return;
-    }
-
-    if (!html5QrcodeRef.current) return;
-    setScannerState("scanning");
-    try {
+      const location = await requestLocation();
+      if (!html5QrcodeRef.current) return;
+      setScannerState("scanning");
       await html5QrcodeRef.current.start(
         { facingMode: "environment" },
         { fps: 10, qrbox: { width: 250, height: 250 } },
@@ -145,29 +142,34 @@ export function QrScanner() {
         undefined
       );
     } catch (err: any) {
-      let errorMessage = "Failed to start camera. Please check browser permissions and ensure no other app is using the camera.";
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        errorMessage = "Camera access was denied. You must grant permission to scan QR codes.";
-      }
-      stopScan();
-      setVerificationError(errorMessage);
-      setScannerState("result");
+       // Location errors are handled in requestLocation
+       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError' || err.name === 'NotFoundError' || err.name === 'NotReadableError') {
+          let errorMessage = "Failed to start camera. Please check browser permissions and ensure no other app is using the camera.";
+          if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+            errorMessage = "Camera access was denied. You must grant permission to scan QR codes.";
+          }
+          stopScan();
+          setVerificationError(errorMessage);
+          setScannerState("result");
+       } else if (err.code === 1) { // Geolocation permission denied
+         // Already handled by requestLocation, do nothing.
+       }
     }
   };
 
   const handleFileScanClick = async () => {
      setVerificationError(null);
-     
      try {
-      const location = await requestLocation();
-      // Store location temporarily so it can be retrieved after file selection
-      fileInputRef.current?.setAttribute('data-location', JSON.stringify(location));
-      // Programmatically click the hidden file input
+      await requestLocation();
+      // Once location is successfully acquired, programmatically click the hidden file input.
       fileInputRef.current?.click();
-      // Reset state to idle so the UI doesn't show a spinner while file dialog is open
-      setScannerState("idle"); 
+      // We set state to idle because the user is now interacting with the file dialog.
+      // The state will change to 'scanning' inside handleFileSelected.
+      setScannerState('idle'); 
     } catch (err: any) {
-       handleLocationError(err);
+       // Errors (e.g., permission denied) are already handled by handleLocationError inside requestLocation
+       // We just need to make sure the state is reset.
+       setScannerState('idle');
     }
   };
 
@@ -176,14 +178,12 @@ export function QrScanner() {
       return; // User cancelled the file dialog
     }
     const file = event.target.files[0];
-    const locationString = fileInputRef.current?.getAttribute('data-location');
     
-    if (!locationString) {
+    if (!deviceLocation) {
       setVerificationError('Device location was not available for verification. Please try again.');
       setScannerState('result');
       return;
     }
-    const location = JSON.parse(locationString);
 
     setScannerState("scanning");
     message.loading({ content: 'Scanning image...', key: 'scanning' });
@@ -192,7 +192,7 @@ export function QrScanner() {
       if (!html5QrcodeRef.current) throw new Error("Scanner not initialized.");
       const decodedText = await html5QrcodeRef.current.scanFile(file, true);
       message.success({ content: 'Scan complete!', key: 'scanning' });
-      processDecodedText(decodedText, location);
+      processDecodedText(decodedText, deviceLocation);
     } catch (err: any) {
       let friendlyError = "Could not scan the QR code from the image. Please try another image.";
        if (typeof err === "string" && err.includes("No MultiFormat Readers were able to detect the code")) {
