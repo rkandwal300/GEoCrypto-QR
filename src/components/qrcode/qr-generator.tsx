@@ -135,39 +135,41 @@ export function QrGenerator() {
     const root = createRoot(tempDiv);
     root.render(tempQrComponent);
 
-    const qrCanvas = tempDiv.querySelector("canvas");
-    if (!qrCanvas) {
-      messageApi.error("Could not generate QR code for download.");
+    setTimeout(() => {
+      const qrCanvas = tempDiv.querySelector("canvas");
+      if (!qrCanvas) {
+        messageApi.error("Could not generate QR code for download.");
+        document.body.removeChild(tempDiv);
+        return;
+      }
+
+      const downloadCanvas = document.createElement("canvas");
+      const ctx = downloadCanvas.getContext("2d");
+      if (!ctx) {
+        messageApi.error("Could not create canvas for download.");
+        document.body.removeChild(tempDiv);
+        return;
+      }
+
+      downloadCanvas.width = downloadSize;
+      downloadCanvas.height = downloadSize;
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillRect(0, 0, downloadSize, downloadSize);
+
+      ctx.drawImage(qrCanvas, padding, padding);
+
+      const link = document.createElement("a");
+      link.href = downloadCanvas.toDataURL("image/png");
+      link.download = "geocrypt-qrcode.png";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      root.unmount();
       document.body.removeChild(tempDiv);
-      return;
-    }
 
-    const downloadCanvas = document.createElement("canvas");
-    const ctx = downloadCanvas.getContext("2d");
-    if (!ctx) {
-      messageApi.error("Could not create canvas for download.");
-      document.body.removeChild(tempDiv);
-      return;
-    }
-
-    downloadCanvas.width = downloadSize;
-    downloadCanvas.height = downloadSize;
-    ctx.fillStyle = "#FFFFFF";
-    ctx.fillRect(0, 0, downloadSize, downloadSize);
-
-    ctx.drawImage(qrCanvas, padding, padding);
-
-    const link = document.createElement("a");
-    link.href = downloadCanvas.toDataURL("image/png");
-    link.download = "geocrypt-qrcode.png";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    root.unmount();
-    document.body.removeChild(tempDiv);
-
-    messageApi.success("Download started!");
+      messageApi.success("Download started!");
+    }, 100);
   };
 
   const handleShareClick = async () => {
