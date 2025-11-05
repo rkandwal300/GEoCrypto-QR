@@ -151,29 +151,26 @@ export function QrScanner() {
   };
 
   const handleFileScanClick = async () => {
-     setVerificationError(null);
-     setScannerState("requesting");
-     message.loading({ content: "Requesting location...", key: "location" });
+    setVerificationError(null);
+    setScannerState("requesting");
+    message.loading({ content: "Requesting location...", key: "location" });
 
-     try {
-      const location = await requestLocation();
-      setDeviceLocation(location);
-      message.success({ content: "Location acquired! Please select a file.", key: "location", duration: 2 });
-      // Programmatically click the hidden file input
-      fileInputRef.current?.click();
-      // Important: Set state back to idle so the UI doesn't stay stuck on the loader.
-      // The file input dialog is now open and waiting for the user.
-      setScannerState('idle'); 
+    try {
+        const location = await requestLocation();
+        setDeviceLocation(location);
+        message.success({ content: "Location acquired! Please select a file.", key: "location", duration: 2 });
+        fileInputRef.current?.click();
     } catch (err: any) {
-       handleLocationError(err);
-       message.destroy("location");
-       setScannerState('idle');
+        handleLocationError(err);
+        message.destroy("location");
+    } finally {
+        setScannerState("idle");
     }
   };
 
   const handleFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files || event.target.files.length === 0) {
-      setScannerState("idle"); // User cancelled the file dialog
+      setScannerState("idle");
       return;
     }
     const file = event.target.files[0];
@@ -271,4 +268,3 @@ export function QrScanner() {
     </div>
   );
 }
-
