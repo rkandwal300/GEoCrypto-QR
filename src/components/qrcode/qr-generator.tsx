@@ -25,6 +25,8 @@ import {
   Flex,
   Divider,
 } from "antd";
+import ReactDOM from 'react-dom';
+
 
 const { Title, Text } = Typography;
 
@@ -109,62 +111,64 @@ export function QrGenerator() {
       return;
     }
 
-    // Create a new, hidden canvas for high-resolution rendering
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      message.error("Could not create a canvas for downloading.");
+    const downloadSize = 1024;
+    const padding = 40;
+    const innerQrSize = downloadSize - padding * 2;
+
+    // Create a temporary div to render the high-res QR code off-screen
+    const tempDiv = document.createElement("div");
+    tempDiv.style.position = "absolute";
+    tempDiv.style.left = "-9999px";
+    document.body.appendChild(tempDiv);
+
+    // Render the high-res QR code into the temporary div
+    const tempQrComponent = (
+      <QRCode
+        value={qrValue}
+        size={innerQrSize}
+        level="H"
+        renderAs="canvas"
+        bgColor="#FFFFFF"
+        fgColor="#000000"
+      />
+    );
+    ReactDOM.render(tempQrComponent, tempDiv);
+
+    // Find the canvas element that was just rendered
+    const qrCanvas = tempDiv.querySelector("canvas");
+    if (!qrCanvas) {
+      message.error("Could not generate QR code for download.");
+      document.body.removeChild(tempDiv);
       return;
     }
 
-    const downloadSize = 1024;
-    const padding = 40; 
-    const innerQrSize = downloadSize - padding * 2;
+    // Create the final download canvas with padding
+    const downloadCanvas = document.createElement("canvas");
+    const ctx = downloadCanvas.getContext("2d");
+    if (!ctx) {
+      message.error("Could not create canvas for download.");
+      document.body.removeChild(tempDiv);
+      return;
+    }
 
-    // Use a temporary QRCode component to render directly to our new canvas
-    const tempDiv = document.createElement("div");
-    document.body.appendChild(tempDiv);
-    
-    // This is a trick to get the QR code data onto our hi-res canvas
-    const tempQr = (
-        <QRCode
-            value={qrValue}
-            size={innerQrSize}
-            level="H"
-            renderAs="canvas"
-            bgColor="#FFFFFF"
-            fgColor="#000000"
-        />
-    );
-    
-    // We need to render it to get the canvas element
-    const tempCanvas = document.createElement('canvas');
-    const qrCode = new (QRCode as any)({
-        value: qrValue,
-        size: innerQrSize,
-        level: 'H',
-        bgColor: '#FFFFFF',
-        fgColor: '#000000',
-    });
-    
-    const qrCanvas = qrCode.renderTo(tempCanvas);
-
-    // Prepare the final download canvas with a white background and padding
-    canvas.width = downloadSize;
-    canvas.height = downloadSize;
+    downloadCanvas.width = downloadSize;
+    downloadCanvas.height = downloadSize;
     ctx.fillStyle = "#FFFFFF";
     ctx.fillRect(0, 0, downloadSize, downloadSize);
 
-    // Draw the newly generated, high-resolution QR code onto the padded canvas
+    // Draw the high-resolution QR code onto the padded canvas
     ctx.drawImage(qrCanvas, padding, padding);
 
     // Trigger the download
     const link = document.createElement("a");
-    link.href = canvas.toDataURL("image/png");
+    link.href = downloadCanvas.toDataURL("image/png");
     link.download = "geocrypt-qrcode.png";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
+    // Clean up the temporary div
+    ReactDOM.unmountComponentAtNode(tempDiv);
     document.body.removeChild(tempDiv);
 
     message.success("Download started!");
