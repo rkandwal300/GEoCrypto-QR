@@ -260,7 +260,7 @@ export function QrScanner() {
               Start Camera Scan
             </Button>
             <Button size="large" icon={<UploadOutlined />} onClick={handleFileScanClick}>
-              Upload QR Code Image
+              Upload QR Code
             </Button>
             <input
               type="file"
