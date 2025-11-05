@@ -185,7 +185,10 @@ export function QrScanner() {
      setVerificationError(null);
      
      const canUseLocation = await checkAndRequestPermissions("geolocation");
-     if (!canUseLocation) return;
+     if (!canUseLocation) {
+        setScannerState("idle");
+        return;
+     }
      
      try {
       const location = await requestLocation();
@@ -194,6 +197,8 @@ export function QrScanner() {
 
     } catch (err: any) {
        handleLocationError(err);
+    } finally {
+        setScannerState("idle");
     }
   };
 
