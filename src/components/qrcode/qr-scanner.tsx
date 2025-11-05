@@ -30,10 +30,25 @@ export function QrScanner() {
     if (!html5QrcodeRef.current) {
       html5QrcodeRef.current = new Html5Qrcode(QR_READER_ID, { verbose: false });
     }
+
+    const handleFocus = () => {
+      // When the user closes the file dialog, the window regains focus.
+      // If we are still in the 'requesting' state, it means they cancelled.
+      if (scannerState === 'requesting' && fileInputRef.current) {
+        // A small timeout helps ensure this runs after other focus-related events
+        setTimeout(() => {
+            setScannerState('idle');
+        }, 100);
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+
     return () => {
       stopScan();
+      window.removeEventListener('focus', handleFocus);
     };
-  }, []);
+  }, [scannerState]);
 
   const stopScan = async () => {
     if (html5QrcodeRef.current?.isScanning) {
@@ -186,7 +201,6 @@ export function QrScanner() {
      
      const canUseLocation = await checkAndRequestPermissions("geolocation");
      if (!canUseLocation) {
-        setScannerState("idle");
         return;
      }
      
@@ -194,11 +208,8 @@ export function QrScanner() {
       const location = await requestLocation();
       fileInputRef.current?.setAttribute('data-location', JSON.stringify(location));
       fileInputRef.current?.click();
-
     } catch (err: any) {
        handleLocationError(err);
-    } finally {
-        setScannerState("idle");
     }
   };
 
