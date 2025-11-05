@@ -244,25 +244,27 @@ export function QrScanner() {
         padding: "16px"
       };
   
-  const qrReaderStyle: React.CSSProperties = isScanning
-    ? {
-        width: '100%',
-        height: '100%',
-        objectFit: 'cover' // This makes the video fill the container
-      }
-    : {
-        width: "100%",
-        border: '1px solid #e8e8e8',
-        borderRadius: '8px',
-        overflow: 'hidden',
-        display: 'none' // Hidden when not scanning
-    };
+  // Styles for the div that contains the QR scanner video feed
+  const qrReaderStyle: React.CSSProperties = {
+    width: '100%',
+    height: '100%',
+    overflow: 'hidden',
+  };
 
+  // When scanning, apply styles directly to the video element created by the library
+  const videoStyle = `
+    #${QR_READER_ID} video {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+    }
+  `;
 
   return (
     <div style={containerStyle}>
        {isScanning ? (
         <>
+          <style>{videoStyle}</style>
           <div id={QR_READER_ID} style={qrReaderStyle}></div>
           <Button
             onClick={stopScan}
@@ -319,4 +321,3 @@ export function QrScanner() {
     </div>
   );
 }
-
