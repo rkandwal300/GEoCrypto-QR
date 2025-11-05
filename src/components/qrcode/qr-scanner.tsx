@@ -5,12 +5,12 @@ import { useEffect, useState, useRef } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { decrypt } from "@/lib/crypto";
 import { LocationVerifier, TargetLocation } from "./LocationVerifier";
-import { Button, message, Typography, Alert, Flex, Spin } from "antd";
+import { Button, message, Spin, Flex, Typography } from "antd";
 import { UploadOutlined, VideoCameraOutlined } from "@ant-design/icons";
 import distance from '@turf/distance';
 import { point } from '@turf/helpers';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Paragraph } = Typography;
 
 const QR_READER_ID = "qr-reader";
 
@@ -146,11 +146,9 @@ export function QrScanner() {
     setScannerState("requesting");
     setVerificationError(null);
 
-    // 1. Check/Request Camera
     const canUseCamera = await checkAndRequestPermissions("camera");
     if (!canUseCamera) return;
 
-    // 2. Check/Request Location
     const canUseLocation = await checkAndRequestPermissions("geolocation");
     if (!canUseLocation) return;
     
@@ -162,7 +160,6 @@ export function QrScanner() {
        return;
     }
 
-    // 3. Start Scanning
     if (!html5QrcodeRef.current) return;
     setScannerState("scanning");
     try {
@@ -187,19 +184,19 @@ export function QrScanner() {
      setScannerState("requesting");
      setVerificationError(null);
      
-     // 1. Check/Request Location
      const canUseLocation = await checkAndRequestPermissions("geolocation");
      if (!canUseLocation) return;
      
      try {
       const location = await requestLocation();
       fileInputRef.current?.setAttribute('data-location', JSON.stringify(location));
-      // 2. Open file picker
       fileInputRef.current?.click();
 
     } catch (err: any) {
        handleLocationError(err);
-       setScannerState('idle'); // Go back to idle if location fails
+    } finally {
+      // Reset state to idle so user can interact again if they close file picker
+      setScannerState('idle');
     }
   };
 
@@ -233,7 +230,6 @@ export function QrScanner() {
       setVerificationError(friendlyError);
       setScannerState("result");
     } finally {
-        // Reset file input value to allow re-selection of the same file
         if (event.target) event.target.value = '';
     }
   };
@@ -276,7 +272,7 @@ export function QrScanner() {
         {(scannerState === "scanning" || scannerState === "requesting") && (
           <Flex justify="center" align="center" vertical gap="small" style={{ marginTop: 16, minHeight: 100 }}>
             <Spin />
-            <Text type="secondary">{scannerState === "requesting" ? "Requesting permissions..." : "Waiting for QR Code..."}</Text>
+            <Typography.Text type="secondary">{scannerState === "requesting" ? "Requesting permissions..." : "Waiting for QR Code..."}</Typography.Text>
             {scannerState === "scanning" && (
                 <Button onClick={stopScan} danger>Cancel</Button>
             )}
