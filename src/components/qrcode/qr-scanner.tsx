@@ -182,19 +182,11 @@ export function QrScanner() {
   // --- Event Handlers ---
 
   const startCameraScan = () => {
-    if (!deviceLocation) {
-      handleLocationError(new Error("Location has not been acquired yet. Please wait or grant permission."));
-      return;
-    }
     setVerificationError(null);
     setScannerState("scanning");
   };
 
   const handleFileScanClick = () => {
-    if (!deviceLocation) {
-      handleLocationError(new Error("Location has not been acquired yet. Please wait or grant permission."));
-      return;
-    }
     fileInputRef.current?.click();
   };
   
@@ -228,7 +220,6 @@ export function QrScanner() {
     setVerificationError(null);
     setDistanceToTarget(null);
     setDeviceLocation(null);
-    setScannerState("initializing");
     requestLocationAndSetState();
   };
 
