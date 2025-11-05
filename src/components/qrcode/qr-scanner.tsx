@@ -5,7 +5,7 @@ import { useEffect, useState, useRef } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { decrypt } from "@/lib/crypto";
 import { LocationVerifier, TargetLocation } from "./LocationVerifier";
-import { Button, message, Spin, Flex, Typography } from "antd";
+import { message, Spin, Flex, Typography, Button } from "antd";
 import { UploadOutlined, VideoCameraOutlined } from "@ant-design/icons";
 import distance from '@turf/distance';
 import { point } from '@turf/helpers';
@@ -194,9 +194,6 @@ export function QrScanner() {
 
     } catch (err: any) {
        handleLocationError(err);
-    } finally {
-      // Reset state to idle so user can interact again if they close file picker
-      setScannerState('idle');
     }
   };
 
