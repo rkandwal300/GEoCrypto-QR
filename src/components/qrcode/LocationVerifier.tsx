@@ -1,25 +1,16 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
-import distance from '@turf/distance';
-import { point } from '@turf/helpers';
 import {
-  LoadingOutlined,
+  CheckCircleFilled,
+  CloseCircleFilled,
   ReloadOutlined,
-  EnvironmentOutlined,
-  LinkOutlined,
+  ExclamationCircleFilled
 } from '@ant-design/icons';
-import { Card, Button, message, Alert, Spin, Layout, Typography, Flex } from 'antd';
+import { Card, Button, Alert, Layout, Typography, Flex } from 'antd';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
-
-type DeviceLocation = {
-  lat: number;
-  long: number;
-  accuracy: number;
-};
 
 export type TargetLocation = {
   name: string;
@@ -28,188 +19,97 @@ export type TargetLocation = {
   address: string;
 };
 
-type VerificationResult = {
-  targetLocation: TargetLocation;
-  deviceLocation: DeviceLocation;
-  distance: number;
-};
-
 interface LocationVerifierProps {
-    targetLocation: TargetLocation;
+    targetLocation: TargetLocation | null;
+    deviceLocation: { lat: number; long: number } | null;
+    distance: number | null;
+    error: string | null;
     onScanAgain: () => void;
 }
 
-export function LocationVerifier({ targetLocation, onScanAgain }: LocationVerifierProps) {
-  const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const verifyLocation = () => {
-      setIsLoading(true);
-      setError(null);
-      setVerificationResult(null);
-
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const deviceLocation: DeviceLocation = {
-              lat: position.coords.latitude,
-              long: position.coords.longitude,
-              accuracy: position.coords.accuracy,
-            };
-            
-            const from = point([targetLocation.longitude, targetLocation.latitude]);
-            const to = point([deviceLocation.long, deviceLocation.lat]);
-            const dist = distance(from, to, { units: 'meters' });
-
-            setVerificationResult({
-              targetLocation,
-              deviceLocation,
-              distance: dist,
-            });
-            message.success('Location verified successfully.');
-            setIsLoading(false);
-          },
-          (geoError) => {
-            console.error('Geolocation error:', geoError);
-            let geoErrorMessage = 'Could not get your location. Please enable location services and try again.';
-            if (geoError.code === geoError.PERMISSION_DENIED) {
-              geoErrorMessage = "Location access was denied. You must grant permission to verify your location.";
-            }
-            setError(geoErrorMessage);
-            message.error(geoErrorMessage);
-            setIsLoading(false);
-          },
-          { enableHighAccuracy: true }
-        );
-      } else {
-        const noGeoMessage = "Geolocation is not supported by your browser.";
-        setError(noGeoMessage);
-        message.error(noGeoMessage);
-        setIsLoading(false);
-      }
-    };
-
-    verifyLocation();
-  }, [targetLocation]); 
-
-  if (isLoading) {
-    return (
-        <Layout style={{ minHeight: '100%', padding: '24px', background: '#f0f2f5' }}>
-            <Flex justify="center" align="center" style={{height: '100%'}}>
-              <Flex vertical align='center' gap="middle">
-                 <Spin
-                    spinning={true}
-                    indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />}
-                    style={{ maxHeight: '100vh' }}
-                />
-                <Text type="secondary">Getting your location...</Text>
-              </Flex>
-            </Flex>
-        </Layout>
-    )
-  }
-
+export function LocationVerifier({ targetLocation, deviceLocation, distance, error, onScanAgain }: LocationVerifierProps) {
+  
   if (error) {
     return (
-        <Layout style={{ minHeight: '100%', padding: '24px', background: '#f0f2f5' }}>
-            <Flex justify="center" align="start">
-                <Card style={{ width: '100%', maxWidth: '800px' }}>
-                    <Alert
-                        message={"Verification Failed"}
-                        description={error}
-                        type="error"
-                        showIcon
-                        action={
-                            <Button type="primary" onClick={onScanAgain} style={{marginTop: 16}}>
-                                Scan Again
-                            </Button>
-                        }
-                    />
-                </Card>
+      <Layout style={{ minHeight: '100%', padding: '24px', background: '#f0f2f5' }}>
+        <Flex justify="center" align="start">
+          <Card style={{ width: '100%', maxWidth: '500px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+            <Flex vertical align="center" gap="large" style={{ padding: '24px' }}>
+                <ExclamationCircleFilled style={{ fontSize: '64px', color: '#faad14' }} />
+                <Title level={3} style={{textAlign: 'center'}}>Permission Required</Title>
+                 <Alert
+                    message="Verification Failed"
+                    description={error}
+                    type="warning"
+                    showIcon
+                />
+                <Button type="primary" size="large" icon={<ReloadOutlined />} onClick={onScanAgain} style={{ width: '100%', marginTop: '16px' }}>
+                    Try Again
+                </Button>
             </Flex>
-        </Layout>
+          </Card>
+        </Flex>
+      </Layout>
     );
   }
 
-  if (verificationResult) {
-    const { targetLocation, deviceLocation, distance } = verificationResult;
-    const distanceInKm = distance > 1000;
-    const displayDistance = distanceInKm
+  if (distance !== null && distance > 100) {
+     const distanceInKm = distance > 1000;
+     const displayDistance = distanceInKm
       ? `${(distance / 1000).toFixed(2)} km`
       : `${distance.toFixed(2)} meters`;
-    
-    const embedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${targetLocation.longitude - 0.01},${targetLocation.latitude - 0.01},${targetLocation.longitude + 0.01},${targetLocation.latitude + 0.01}&layer=mapnik&marker=${targetLocation.latitude},${targetLocation.longitude}`;
-    const routeUrl = `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${deviceLocation.lat}%2C${deviceLocation.long}%3B${targetLocation.latitude}%2C${targetLocation.longitude}`;
-    
+
     return (
       <Layout style={{ minHeight: '100%', padding: '24px', background: '#f0f2f5' }}>
-        <Content>
-          <Flex justify="center" align="start">
-            <Card
-              style={{ width: '100%', maxWidth: '800px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-            >
-              <Flex vertical align="center" gap="middle">
-                <div style={{ backgroundColor: 'rgba(24, 144, 255, 0.1)', padding: '12px', borderRadius: '50%' }}>
-                  <EnvironmentOutlined style={{ fontSize: '32px', color: '#1890ff' }} />
-                </div>
-                <Title level={2}>Location Verification</Title>
-              </Flex>
-              <Flex vertical gap="large" style={{ marginTop: '24px' }}>
-                <div>
-                  <Title level={4}>Target Location</Title>
-                  <Card style={{ background: '#f5f5f5', marginTop: '8px' }}>
-                     <p><Text strong>Name:</Text> {targetLocation.name}</p>
-                     <p><Text strong>Address:</Text> {targetLocation.address}</p>
-                     <p><Text strong>Coordinates:</Text> {targetLocation.latitude.toFixed(6)}, {targetLocation.longitude.toFixed(6)}</p>
-                  </Card>
-                </div>
-
-                <Flex vertical gap="middle">
-                  <Title level={4}>Your Location & Distance</Title>
-                  <Card style={{ background: '#f5f5f5' }}>
-                     <p><Text strong>Your Location:</Text> {deviceLocation.lat.toFixed(6)}, {deviceLocation.long.toFixed(6)}</p>
-                     <p><Text strong>Accuracy:</Text> {deviceLocation.accuracy.toFixed(2)} meters</p>
-                     <p><Text strong>Distance:</Text> <Text strong type={distance > 100 ? 'danger' : 'success'}>{displayDistance} away</Text></p>
-                  </Card>
-                  <div style={{ aspectRatio: '16/9', width: '100%', borderRadius: 8, overflow: 'hidden', border: '1px solid #e8e8e8' }}>
-                    <iframe
-                        width="100%"
-                        height="100%"
-                        loading="lazy"
-                        allowFullScreen
-                        src={embedUrl}
-                      ></iframe>
-                  </div>
-                  <Button
-                    href={routeUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    icon={<LinkOutlined />}
-                    size="large"
-                    block
-                  >
-                    View Route on OpenStreetMap
-                  </Button>
-                </Flex>
-
-                <Button
-                  type="primary"
-                  size="large"
-                  icon={<ReloadOutlined />}
-                  onClick={onScanAgain}
-                  style={{ width: '100%', marginTop: '16px' }}
-                >
-                  Scan Again
+        <Flex justify="center" align="start">
+          <Card style={{ width: '100%', maxWidth: '500px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+            <Flex vertical align="center" gap="middle" style={{ padding: '24px' }}>
+                 <CloseCircleFilled style={{ fontSize: '64px', color: '#ff4d4f' }} />
+                 <Title level={3}>Verification Failed</Title>
+                 <Text type="secondary" style={{textAlign: 'center'}}>You are too far from the target location.</Text>
+                 <Title level={4} style={{ margin: '16px 0', color: '#ff4d4f' }}>
+                    You are {displayDistance} away.
+                 </Title>
+                 <Button type="primary" size="large" icon={<ReloadOutlined />} onClick={onScanAgain} style={{ width: '100%', marginTop: '16px' }}>
+                    Scan Again
                 </Button>
-              </Flex>
-            </Card>
-          </Flex>
-        </Content>
+            </Flex>
+          </Card>
+        </Flex>
+      </Layout>
+    );
+  }
+
+  if (distance !== null && distance <= 100) {
+     return (
+      <Layout style={{ minHeight: '100%', padding: '24px', background: '#f0f2f5' }}>
+        <Flex justify="center" align="start">
+          <Card style={{ width: '100%', maxWidth: '500px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+            <Flex vertical align="center" gap="middle" style={{ padding: '24px' }}>
+                 <CheckCircleFilled style={{ fontSize: '64px', color: '#52c41a' }} />
+                 <Title level={3}>Verification Successful</Title>
+                 <Text type="secondary">Thank you! Your arrival has been confirmed.</Text>
+                 <Button type="primary" size="large" icon={<ReloadOutlined />} onClick={onScanAgain} style={{ width: '100%', marginTop: '16px' }}>
+                    Scan Another
+                </Button>
+            </Flex>
+          </Card>
+        </Flex>
       </Layout>
     );
   }
   
-  return null; // Should not be reached
+  // This state should ideally not be reached if logic in parent is correct
+  return (
+     <Layout style={{ minHeight: '100%', padding: '24px', background: '#f0f2f5' }}>
+        <Flex justify="center" align="start">
+           <Card style={{ width: '100%', maxWidth: '500px' }}>
+                <Alert message="Something went wrong" description="Invalid state. Please try scanning again." type="error" />
+                 <Button type="primary" onClick={onScanAgain} style={{marginTop: 16}}>
+                    Scan Again
+                </Button>
+           </Card>
+        </Flex>
+     </Layout>
+  );
 }
