@@ -25,7 +25,7 @@ import {
   Flex,
   Divider,
 } from "antd";
-import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 
 
 const { Title, Text } = Typography;
@@ -116,13 +116,11 @@ export function QrGenerator() {
     const padding = 40;
     const innerQrSize = downloadSize - padding * 2;
 
-    // Create a temporary div to render the high-res QR code off-screen
     const tempDiv = document.createElement("div");
     tempDiv.style.position = "absolute";
     tempDiv.style.left = "-9999px";
     document.body.appendChild(tempDiv);
 
-    // Render the high-res QR code into the temporary div
     const tempQrComponent = (
       <QRCode
         value={qrValue}
@@ -133,9 +131,10 @@ export function QrGenerator() {
         fgColor="#000000"
       />
     );
-    ReactDOM.render(tempQrComponent, tempDiv);
+    
+    const root = createRoot(tempDiv);
+    root.render(tempQrComponent);
 
-    // Find the canvas element that was just rendered
     const qrCanvas = tempDiv.querySelector("canvas");
     if (!qrCanvas) {
       messageApi.error("Could not generate QR code for download.");
@@ -143,7 +142,6 @@ export function QrGenerator() {
       return;
     }
 
-    // Create the final download canvas with padding
     const downloadCanvas = document.createElement("canvas");
     const ctx = downloadCanvas.getContext("2d");
     if (!ctx) {
@@ -157,10 +155,8 @@ export function QrGenerator() {
     ctx.fillStyle = "#FFFFFF";
     ctx.fillRect(0, 0, downloadSize, downloadSize);
 
-    // Draw the high-resolution QR code onto the padded canvas
     ctx.drawImage(qrCanvas, padding, padding);
 
-    // Trigger the download
     const link = document.createElement("a");
     link.href = downloadCanvas.toDataURL("image/png");
     link.download = "geocrypt-qrcode.png";
@@ -168,8 +164,7 @@ export function QrGenerator() {
     link.click();
     document.body.removeChild(link);
 
-    // Clean up the temporary div
-    ReactDOM.unmountComponentAtNode(tempDiv);
+    root.unmount();
     document.body.removeChild(tempDiv);
 
     messageApi.success("Download started!");
@@ -370,3 +365,5 @@ export function QrGenerator() {
     </div>
   );
 }
+
+    
