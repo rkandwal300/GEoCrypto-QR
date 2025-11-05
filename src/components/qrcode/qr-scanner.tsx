@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { Html5Qrcode } from "html5-qrcode";
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { decrypt } from "@/lib/crypto";
 import { LocationVerifier, TargetLocation } from "./LocationVerifier";
 import { message, Spin, Flex, Typography, Button } from "antd";
@@ -31,7 +31,13 @@ export function QrScanner() {
   useEffect(() => {
     // Initialize the scanner library
     if (!html5QrcodeRef.current) {
-      html5QrcodeRef.current = new Html5Qrcode(QR_READER_ID, { verbose: false });
+      const formats: Html5QrcodeSupportedFormats[] = [
+        Html5QrcodeSupportedFormats.QR_CODE,
+      ];
+      html5QrcodeRef.current = new Html5Qrcode(QR_READER_ID, {
+        verbose: false,
+        formatsToSupport: formats,
+      });
     }
 
     // Request location permission on initial load
@@ -126,7 +132,6 @@ export function QrScanner() {
 
     setVerificationError(null);
     setScannerState("scanning");
-    message.loading({ content: "Starting camera...", key: "camera" });
 
     try {
       if (!html5QrcodeRef.current) throw new Error("Scanner not initialized.");
@@ -137,9 +142,7 @@ export function QrScanner() {
           (decodedText) => processDecodedText(decodedText),
           undefined 
       );
-      message.success({ content: "Camera started!", key: "camera", duration: 2 });
     } catch (err: any) {
-      message.destroy("camera");
       let errorMessage = "Failed to start camera. Please check browser permissions.";
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
           errorMessage = "Camera access was denied. You must grant permission to scan QR codes.";
@@ -158,7 +161,10 @@ export function QrScanner() {
   };
   
   const handleFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!event.target.files || event.target.files.length === 0) return;
+    if (!event.target.files || event.target.files.length === 0) {
+      setScannerState("idle");
+      return;
+    };
     const file = event.target.files[0];
     
     setScannerState("scanning");
@@ -214,54 +220,103 @@ export function QrScanner() {
      )
   }
 
-  const isLoading = scannerState === 'initializing' || scannerState === 'scanning';
-  const isIdle = scannerState === 'idle';
+  const isLoading = scannerState === 'initializing';
+  const isScanning = scannerState === 'scanning';
+
+  const containerStyle: React.CSSProperties = isScanning
+    ? {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        background: 'black',
+        zIndex: 1000,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }
+    : {
+        width: "100%",
+        maxWidth: "800px",
+        margin: "16px auto",
+        padding: "16px"
+      };
+  
+  const qrReaderStyle: React.CSSProperties = isScanning
+    ? {
+        width: '100%',
+        height: '100%',
+        objectFit: 'cover' // This makes the video fill the container
+      }
+    : {
+        width: "100%",
+        border: '1px solid #e8e8e8',
+        borderRadius: '8px',
+        overflow: 'hidden',
+        display: 'none' // Hidden when not scanning
+    };
+
 
   return (
-    <div style={{ width: "100%", maxWidth: "800px", margin: "16px auto", padding: "16px" }}>
-      <Flex vertical align="center" gap="middle" style={{ padding: "24px" }}>
-        <Title level={2} style={{ textAlign: "center", margin: 0 }}>
-          Report Your Arrival
-        </Title>
-        <Paragraph type="secondary" style={{ textAlign: "center", fontSize: 16 }}>
-          Please scan the QR code at the gate. We’ll use your location to confirm you’re at the correct site.
-        </Paragraph>
-      </Flex>
-
-      <div style={{ padding: "0 24px 24px" }}>
-        <div id={QR_READER_ID} style={{ width: "100%", display: scannerState === "scanning" ? "block" : "none", border: '1px solid #e8e8e8', borderRadius: '8px', overflow: 'hidden' }}></div>
-        
-        {isLoading && (
-          <Flex justify="center" align="center" vertical gap="small" style={{ marginTop: 16, minHeight: 100 }}>
-            <Spin />
-            <Typography.Text type="secondary">
-              {scannerState === "initializing" ? "Acquiring location..." : "Waiting for QR Code..."}
-            </Typography.Text>
-            {scannerState === "scanning" && (
-                <Button onClick={stopScan} danger style={{marginTop: '16px'}}>Cancel</Button>
-            )}
-          </Flex>
-        )}
-
-        {isIdle && (
-          <Flex vertical gap="middle">
-            <Button type="primary" size="large" icon={<VideoCameraOutlined />} onClick={startCameraScan}>
-              Start Camera Scan
-            </Button>
-            <Button size="large" icon={<UploadOutlined />} onClick={handleFileScanClick}>
-              Upload QR Code
-            </Button>
-            <input
-              type="file"
-              id="qr-file-input"
-              ref={fileInputRef}
-              accept="image/*"
-              style={{ display: "none" }}
-              onChange={handleFileSelected}
-            />
-          </Flex>
-        )}
-      </div>
+    <div style={containerStyle}>
+       {isScanning ? (
+        <>
+          <div id={QR_READER_ID} style={qrReaderStyle}></div>
+          <Button
+            onClick={stopScan}
+            danger
+            style={{ position: 'absolute', bottom: '24px', zIndex: 1001 }}
+            size="large"
+          >
+            Cancel
+          </Button>
+        </>
+      ) : (
+        <>
+        <Flex vertical align="center" gap="middle" style={{ padding: "24px" }}>
+          <Title level={2} style={{ textAlign: "center", margin: 0 }}>
+            Report Your Arrival
+          </Title>
+          <Paragraph type="secondary" style={{ textAlign: "center", fontSize: 16 }}>
+            Please scan the QR code at the gate. We’ll use your location to confirm you’re at the correct site.
+          </Paragraph>
+        </Flex>
+  
+        <div style={{ padding: "0 24px 24px" }}>
+           {/* This div is now only a placeholder for non-scanning state */}
+           <div id={QR_READER_ID} style={{ display: 'none' }}></div>
+          
+          {isLoading ? (
+            <Flex justify="center" align="center" vertical gap="small" style={{ marginTop: 16, minHeight: 100 }}>
+              <Spin />
+              <Typography.Text type="secondary">
+                Acquiring location...
+              </Typography.Text>
+            </Flex>
+          ): (
+            <Flex vertical gap="middle">
+              <Button type="primary" size="large" icon={<VideoCameraOutlined />} onClick={startCameraScan}>
+                Start Camera Scan
+              </Button>
+              <Button size="large" icon={<UploadOutlined />} onClick={handleFileScanClick}>
+                Upload QR Code
+              </Button>
+              <input
+                type="file"
+                id="qr-file-input"
+                ref={fileInputRef}
+                accept="image/*"
+                style={{ display: "none" }}
+                onChange={handleFileSelected}
+              />
+            </Flex>
+          )}
+        </div>
+      </>
+    )}
     </div>
   );
 }
+
