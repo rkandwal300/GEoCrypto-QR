@@ -3,7 +3,7 @@ import CryptoJS from "crypto-js";
 // A secure, randomly generated key is crucial.
 // For a real application, this should be managed securely and not hardcoded.
 // For example, load it from an environment variable.
-const SECRET_KEY = process.env.NEXT_PUBLIC_CRYPTO_SECRET_KEY || "default-secret-key-for-dev-12345";
+const SECRET_KEY = process.env.NEXT_PUBLIC_CRYPTO_SECRET_KEY ;
 
 if (process.env.NODE_ENV === "development" && SECRET_KEY === "default-secret-key-for-dev-12345") {
   console.warn(
@@ -18,6 +18,10 @@ if (process.env.NODE_ENV === "development" && SECRET_KEY === "default-secret-key
  * @returns {string} The encrypted ciphertext.
  */
 export const encrypt = (text: string): string => {
+  if(!SECRET_KEY) {
+    throw new Error("SECRET_KEY is not defined");
+  }
+  console.log({SECRET_KEY})
   return CryptoJS.AES.encrypt(text, SECRET_KEY).toString();
 };
 
@@ -28,6 +32,10 @@ export const encrypt = (text: string): string => {
  */
 export const decrypt = (ciphertext: string): string | null => {
   try {
+    if(!SECRET_KEY) {
+      throw new Error("SECRET_KEY is not defined");
+    }
+    console.log({SECRET_KEY})
     const bytes = CryptoJS.AES.decrypt(ciphertext, SECRET_KEY);
     const originalText = bytes.toString(CryptoJS.enc.Utf8);
     // If the decrypted string is empty, it means the key was likely wrong.
