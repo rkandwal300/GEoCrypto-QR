@@ -194,7 +194,7 @@ export function QrGenerator() {
                 ref={qrCodeRef}
                 style={{
                   padding: '16px',
-                  backgroundColor: 'white',
+                  backgroundColor: 'black',
                   borderRadius: '8px',
                   boxShadow: '0 2px 8px rgba(0,0,0,0.09)',
                 }}
@@ -204,8 +204,8 @@ export function QrGenerator() {
                   value={qrValue}
                   size={256}
                   level="H"
-                  bgColor="#ffffff"
-                  fgColor="#000000"
+                  bgColor="#000000"
+                  fgColor="#ffffff"
                   renderAs="canvas"
                 />
               </div>
