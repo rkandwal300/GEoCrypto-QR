@@ -202,7 +202,7 @@ export function QrGenerator() {
               >
                 <QrCodeComponent
                   value={qrValue}
-                  size={256}
+                  size={320}
                   level="H"
                   bgColor="#ffffff"
                   fgColor="#000000"
