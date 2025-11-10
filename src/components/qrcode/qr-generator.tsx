@@ -5,7 +5,6 @@ import { useState, useRef, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import QRCode from "qrcode";
 import { encrypt } from "@/lib/crypto";
 import {
   DownloadOutlined,
@@ -106,27 +105,15 @@ export function QrGenerator() {
   };
 
 
-  const handleDownload = async () => {
-    if (!qrValue) {
-      messageApi.error("No QR code has been generated.");
+  const handleDownload = () => {
+    const canvas = qrCodeRef.current?.querySelector<HTMLCanvasElement>('canvas');
+    if (!canvas) {
+      messageApi.error("Could not find QR code canvas to download.");
       return;
     }
     
     try {
-      // Use toDataURL for a reliable, high-quality image generation.
-      // The 'margin' option provides padding.
-      const dataUrl = await QRCode.toDataURL(qrValue, {
-        type: 'image/png',
-        quality: 1,
-        errorCorrectionLevel: 'H',
-        width: 1024,
-        margin: 4, // This creates a nice border around the QR code
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF',
-        },
-      });
-      
+      const dataUrl = canvas.toDataURL('image/png');
       const link = document.createElement("a");
       link.href = dataUrl;
       link.download = "geocrypt-qrcode.png";
@@ -137,8 +124,8 @@ export function QrGenerator() {
       messageApi.success("Download started!");
       
     } catch (error) {
-      console.error("Failed to generate QR code for download:", error);
-      messageApi.error("Could not generate QR code for download.");
+      console.error("Failed to create data URL for download:", error);
+      messageApi.error("Could not generate image for download.");
     }
   };
 
