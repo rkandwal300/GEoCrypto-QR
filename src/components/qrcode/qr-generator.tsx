@@ -25,7 +25,6 @@ import {
   Flex,
   Divider,
 } from "antd";
-import { createRoot } from 'react-dom/client';
 import QrCodeComponent from "qrcode.react";
 
 
@@ -107,70 +106,40 @@ export function QrGenerator() {
   };
 
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!qrValue) {
       messageApi.error("No QR code has been generated.");
       return;
     }
-
-    const canvas = document.createElement('canvas');
-    const size = 1024;
-    const padding = 40;
-
-    canvas.width = size;
-    canvas.height = size;
-    const context = canvas.getContext('2d');
-
-    if (!context) {
-        messageApi.error("Could not create canvas for download.");
-        return;
-    }
-
-    // Fill background with white
-    context.fillStyle = '#FFFFFF';
-    context.fillRect(0, 0, size, size);
-
-    // Generate the QR code directly onto the main canvas with padding
-    QRCode.toCanvas(canvas, qrValue, {
-        width: size - (padding * 2), // QR code content size
-        margin: 0, // We handle padding manually
+    
+    try {
+      // Use toDataURL for a reliable, high-quality image generation.
+      // The 'margin' option provides padding.
+      const dataUrl = await QRCode.toDataURL(qrValue, {
+        type: 'image/png',
+        quality: 1,
         errorCorrectionLevel: 'H',
+        width: 1024,
+        margin: 4, // This creates a nice border around the QR code
         color: {
-            dark: '#000000',
-            light: '#FFFFFF'
-        }
-    }, (error) => {
-        if (error) {
-            messageApi.error("Failed to generate QR code for download.");
-            console.error(error);
-            return;
-        }
-
-        // The 'toCanvas' callback gives us the canvas, but it's drawn at the top-left.
-        // We need to re-draw it with padding onto another canvas.
-        const finalCanvas = document.createElement('canvas');
-        finalCanvas.width = size;
-        finalCanvas.height = size;
-        const finalContext = finalCanvas.getContext('2d');
-
-        if (!finalContext) {
-            messageApi.error("Could not create final canvas for download.");
-            return;
-        }
-
-        finalContext.fillStyle = '#FFFFFF';
-        finalContext.fillRect(0, 0, size, size);
-        finalContext.drawImage(canvas, padding, padding);
-
-        const link = document.createElement("a");
-        link.href = finalCanvas.toDataURL("image/png");
-        link.download = "geocrypt-qrcode.png";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        messageApi.success("Download started!");
-    });
+          dark: '#000000',
+          light: '#FFFFFF',
+        },
+      });
+      
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = "geocrypt-qrcode.png";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      messageApi.success("Download started!");
+      
+    } catch (error) {
+      console.error("Failed to generate QR code for download:", error);
+      messageApi.error("Could not generate QR code for download.");
+    }
   };
 
   const handleShareClick = async () => {
@@ -368,4 +337,3 @@ export function QrGenerator() {
     </div>
   );
 }
-
